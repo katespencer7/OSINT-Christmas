@@ -2,65 +2,33 @@ from game import *
 
 def main():
     pygame.init()
-
     screen = pygame.display.set_mode((800, 600))
-
-    # create a ui element
-    begin_element = UIElement(
-        center_position=(300, 475),
-        font_size=30,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text="Begin",
-        action="BEGIN",
-    )
-
-    quit_element = UIElement(
-        center_position=(500, 475),
-        font_size=30,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text="Quit",
-        action=GameState.QUIT,
-    )
-
-    character_element = UIElement(
-        center_position=(400, 175),
-        font_size=30,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text="Character Selection",
-        action="CHARACTER",
-    )
-
-    buttons = [begin_element, character_element, quit_element]
-
+    game_state = GameState.TITLE
     running = True
+
     while running:
-        for event in pygame.event.get():
+        for event in pygame.event.get(): # for window closing
             if event.type == pygame.QUIT:
                 running = False
 
-        screen.fill(BLACK)
+        if game_state == GameState.TITLE:
+            game_state = title_screen(screen)
 
-        mouse_pos = pygame.mouse.get_pos()
-        mouse_up = pygame.mouse.get_pressed()[0]
+        elif game_state == GameState.NEWGAME:
+            game_state = play_level(screen)
 
-        for btn in buttons:
-            action = btn.update(mouse_pos, mouse_up)
-            btn.draw(screen)
-            if action == GameState.QUIT:
-                running = False
-            elif action == "BEGIN":
-                click_sound.play()
-            elif action == "CHARACTER":
-                click_sound.play()
+        elif game_state == GameState.CHARACTER:
+            game_state = play_level(screen)
+
+        elif game_state == GameState.QUIT:
+            running = False
 
         pygame.display.flip()
         clock.tick(60)
 
     pygame.quit()
+    sys.exit()
 
-# call main when the script is run
+
 if __name__ == "__main__":
     main()

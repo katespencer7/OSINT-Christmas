@@ -19,7 +19,7 @@ BLACK = (0, 0, 0)
 
 pygame.mixer.music.load('assets/sounds/soulomon-b-the-yume-collective-midnight-miracles-436039.mp3')
 pygame.mixer.music.play(-1) # play indefinetly
-click_sound = pygame.mixer.Sound("assets/sounds/90s-game-ui-6-185099.mp3")
+click_sound = pygame.mixer.Sound("assets/sounds/90s-game-ui-6-185099.wav")
 
 def create_surface_with_text(text, font_size, text_rgb, bg_rgb=None):
     # Resize font if needed
@@ -79,6 +79,7 @@ class UIElement(Sprite):
         if self.rect.collidepoint(mouse_pos):
             self.mouse_over = True
             if mouse_up:
+                click_sound.play()
                 return self.action
         else:
             self.mouse_over = False
@@ -91,3 +92,78 @@ class GameState(Enum):
     QUIT = -1
     TITLE = 0
     NEWGAME = 1
+    CHARACTER = 2
+
+def title_screen(screen):
+    begin_element = UIElement(
+        center_position=(300, 475),
+        font_size=30,
+        bg_rgb=BLACK,
+        text_rgb=WHITE,
+        text="Begin",
+        action=GameState.NEWGAME,
+    )
+
+    quit_element = UIElement(
+        center_position=(500, 475),
+        font_size=30,
+        bg_rgb=BLACK,
+        text_rgb=WHITE,
+        text="Quit",
+        action=GameState.QUIT,
+    )
+
+    character_element = UIElement(
+        center_position=(400, 175),
+        font_size=30,
+        bg_rgb=BLACK,
+        text_rgb=WHITE,
+        text="Character Selection",
+        action=GameState.CHARACTER,
+    )
+
+    buttons = [begin_element, character_element, quit_element]
+
+    while True:
+        mouse_up = False
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT: # for window closing
+                return GameState.QUIT
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                mouse_up = True
+        screen.fill(BLACK)
+
+        for button in buttons:
+            ui_action = button.update(pygame.mouse.get_pos(), mouse_up)
+            if ui_action is not None:
+                return ui_action
+            button.draw(screen)
+
+        pygame.display.flip()
+
+
+def play_level(screen):
+    return_btn = UIElement(
+        center_position=(140, 570),
+        font_size=20,
+        bg_rgb=BLACK,
+        text_rgb=WHITE,
+        text="<--- Return to start",
+        action=GameState.TITLE,
+    )
+
+    while True:
+        mouse_up = False
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT: # for window closing
+                return GameState.QUIT
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                mouse_up = True
+        screen.fill(BLACK)
+
+        ui_action = return_btn.update(pygame.mouse.get_pos(), mouse_up)
+        if ui_action is not None:
+            return ui_action
+        return_btn.draw(screen)
+
+        pygame.display.flip()
