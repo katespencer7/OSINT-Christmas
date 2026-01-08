@@ -1,33 +1,66 @@
-import pygame
-import sys
+from game import *
 
-pygame.init()
+def main():
+    pygame.init()
 
-WIDTH, HEIGHT = 800, 600
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("OSINT CTF")
+    screen = pygame.display.set_mode((800, 600))
 
-clock = pygame.time.Clock()
+    # create a ui element
+    begin_element = UIElement(
+        center_position=(300, 475),
+        font_size=30,
+        bg_rgb=BLACK,
+        text_rgb=WHITE,
+        text="Begin",
+        action="BEGIN",
+    )
 
-# Colors
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
+    quit_element = UIElement(
+        center_position=(500, 475),
+        font_size=30,
+        bg_rgb=BLACK,
+        text_rgb=WHITE,
+        text="Quit",
+        action=GameState.QUIT,
+    )
 
-font = pygame.font.Font('assets/ByteBounce.ttf', 36)
+    character_element = UIElement(
+        center_position=(400, 175),
+        font_size=30,
+        bg_rgb=BLACK,
+        text_rgb=WHITE,
+        text="Character Selection",
+        action="CHARACTER",
+    )
 
-def draw_text(text, x, y):
-    img = font.render(text, True, WHITE)
-    screen.blit(img, (x, y))
+    buttons = [begin_element, character_element, quit_element]
 
-# Main loop
-while True:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
 
-    screen.fill(BLACK)
-    draw_text("OSINT CTF - Press ESC to quit", 50, 50)
+        screen.fill(BLACK)
 
-    pygame.display.flip()
-    clock.tick(60)
+        mouse_pos = pygame.mouse.get_pos()
+        mouse_up = pygame.mouse.get_pressed()[0]
+
+        for btn in buttons:
+            action = btn.update(mouse_pos, mouse_up)
+            btn.draw(screen)
+            if action == GameState.QUIT:
+                running = False
+            elif action == "BEGIN":
+                click_sound.play()
+            elif action == "CHARACTER":
+                click_sound.play()
+
+        pygame.display.flip()
+        clock.tick(60)
+
+    pygame.quit()
+
+# call main when the script is run
+if __name__ == "__main__":
+    main()
