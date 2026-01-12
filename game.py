@@ -1,9 +1,11 @@
 import pygame
-import pygame.freetype
+# import pygame.freetype
 from pygame.sprite import Sprite, RenderUpdates
-from pygame.rect import Rect
+# from pygame.rect import Rect
 import sys, json, os
 from enum import Enum
+
+from challenges import load_city_levels, LevelBox, osint_level_screen
 
 # Colors
 WHITE = (255, 255, 255)
@@ -79,7 +81,8 @@ class UIElement(Sprite):
         if self.rect.collidepoint(mouse_pos):
             self.mouse_over = True
             if mouse_up:
-                sound.play()
+                if sound:
+                    sound.play()
                 return self.action
         else:
             self.mouse_over = False
@@ -95,6 +98,7 @@ class GameState(Enum):
     NEWGAME = 1
     CHARACTER = 2
     NEXT_LEVEL = 3
+    OSINT = 4
     
     PORTLAND = 10
     CORVALLIS = 11
@@ -206,7 +210,7 @@ def corvallis_screen(screen, sound=None):
     buttons = RenderUpdates(return_btn)
     return game_loop(screen, buttons, sound, background_image)
 
-def character_screen(screen, player, sound=None):
+def character_screen(screen, sound=None):
     ''' Character selection page. Uses Character class for character values '''
     return_btn = UIElement(
         center_position=(140, 570),
