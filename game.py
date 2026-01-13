@@ -128,6 +128,40 @@ class Character: # TODO
         return
 
 
+class Button(Sprite):
+    """
+    Button class for UI elements. From https://github.com/russs123/pygame_tutorials/blob/main/Button/button.py
+    """
+    def __init__(self, x, y, image_path, scale):
+        super().__init__()
+        image = pygame.image.load(image_path).convert_alpha()
+        width = image.get_width()
+        height = image.get_height()
+        self.image = pygame.transform.scale(image, (int(width * scale), int(height * scale)))
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+        self.clicked = False
+
+    def draw(self, surface):
+        action = False
+        #get mouse position
+        pos = pygame.mouse.get_pos()
+
+        #check mouseover and clicked conditions
+        if self.rect.collidepoint(pos):
+            if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
+                self.clicked = True
+                action = True
+
+        if pygame.mouse.get_pressed()[0] == 0:
+            self.clicked = False
+
+        #draw button on screen
+        surface.blit(self.image, (self.rect.x, self.rect.y))
+
+        return action
+
+
 def title_screen(screen, sound=None):
     background_image = pygame.image.load(os.path.join('assets/background_images/background_pixel.png')).convert()
     background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))     # Scale the image to fit the window size
@@ -163,10 +197,11 @@ def title_screen(screen, sound=None):
     return game_loop(screen, buttons, sound, background_image)
 
 def portland_screen(screen, sound=None):
-    background_image = pygame.image.load(
-        os.path.join('assets/background_images/portland_pixel.png')
-    ).convert()
+    background_image = pygame.image.load(os.path.join('assets/background_images/portland_pixel.png')).convert()
     background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
+    # overlay = pygame.Surface((surface.get_width(), surface.get_height()), pygame.SRCALPHA)
+    # overlay.fill((0, 0, 0, 180))
+    # surface.blit(overlay, (0, 0))
 
     return_btn = UIElement(
         center_position=(140, 570),
