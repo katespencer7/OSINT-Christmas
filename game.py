@@ -5,7 +5,7 @@ from pygame.sprite import Sprite, RenderUpdates
 import sys, json, os
 from enum import Enum
 
-from challenges import load_city_levels, LevelBox, osint_level_screen
+from challenges import load_city_levels, LevelBox, OSINTBox, osint_level_screen
 
 # Colors
 WHITE = (255, 255, 255)
@@ -163,8 +163,10 @@ def title_screen(screen, sound=None):
     return game_loop(screen, buttons, sound, background_image)
 
 def portland_screen(screen, sound=None):
-    background_image = pygame.image.load(os.path.join('assets/background_images/portland_pixel.png')).convert()
-    background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))     # Scale the image to fit the window size
+    background_image = pygame.image.load(
+        os.path.join('assets/background_images/portland_pixel.png')
+    ).convert()
+    background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 
     return_btn = UIElement(
         center_position=(140, 570),
@@ -175,8 +177,32 @@ def portland_screen(screen, sound=None):
         action=GameState.NEWGAME,
     )
 
+    levels = load_city_levels("portland")
+    level_boxes = RenderUpdates()
+
+    ICON_SIZE = 160
+    GAP_X = 40
+    GAP_Y = 40
+
+    START_X = 100
+    START_Y = 60
+
+    for i, level in enumerate(levels):
+        if i < 3:
+            col, row = i, 0
+        else:
+            col, row = i - 3, 1
+
+        x = START_X + col * (ICON_SIZE + GAP_X)
+        y = START_Y + row * (ICON_SIZE + GAP_Y)
+
+        box = LevelBox(position=(x, y), level=(level.level_id), unlocked=True)
+        level_boxes.add(box)
+
     buttons = RenderUpdates(return_btn)
-    return game_loop(screen, buttons, sound, background_image, draw_box=True)
+
+    return game_loop(screen, buttons, sound, background_image, level_boxes=level_boxes, levels=levels)
+
 
 def eugene_screen(screen, sound=None):
     background_image = pygame.image.load(os.path.join('assets/background_images/eugene_pixel.png')).convert()
@@ -194,6 +220,7 @@ def eugene_screen(screen, sound=None):
     buttons = RenderUpdates(return_btn)
     return game_loop(screen, buttons, sound, background_image)
 
+
 def corvallis_screen(screen, sound=None):
     background_image = pygame.image.load(os.path.join('assets/background_images/corvallis_pixel.png')).convert()
     background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))     # Scale the image to fit the window size
@@ -210,6 +237,7 @@ def corvallis_screen(screen, sound=None):
     buttons = RenderUpdates(return_btn)
     return game_loop(screen, buttons, sound, background_image)
 
+
 def character_screen(screen, sound=None):
     ''' Character selection page. Uses Character class for character values '''
     return_btn = UIElement(
@@ -223,6 +251,7 @@ def character_screen(screen, sound=None):
 
     buttons = RenderUpdates(return_btn)
     return game_loop(screen, buttons, sound)
+
 
 def play_level(screen, player, sound=None):
     return_btn = UIElement(
@@ -269,44 +298,71 @@ def play_level(screen, player, sound=None):
     buttons = RenderUpdates(return_btn, nextlevel_btn, portland_btn, eugene_btn, corvallis_btn)
     return game_loop(screen, buttons, sound)
 
-def game_loop(screen, buttons, sound=None, background=None, draw_box=False):
-    """ Handles game loop until an action is return by a button in the
-    buttons sprite renderer.
-    """
+
+def game_loop(screen, buttons, sound=None, background=None, level_boxes=None, levels=None):
+    active_osint = None
+    clock = pygame.time.Clock()
+
     while True:
         mouse_up = False
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT: # for window closing
+        events = pygame.event.get()
+
+        for event in events:
+            if event.type == pygame.QUIT:
                 return GameState.QUIT
             if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                 mouse_up = True
-        
+
+        mouse_pos = pygame.mouse.get_pos()
+
+        # ---------------- OSINT MODAL ACTIVE ----------------
+        if active_osint:
+            result = active_osint.update(events)
+
+            if background:
+                screen.blit(background, (0, 0))
+            else:
+                screen.fill(BLACK)
+
+            active_osint.draw(screen)
+            pygame.display.flip()
+            clock.tick(60)
+
+            if result is True:
+                print("Correct!")
+                active_osint = None
+
+            elif result is False:
+                print("Incorrect!")
+
+            continue
+        # ----------------------------------------------------
+
+        # Draw background
         if background:
             screen.blit(background, (0, 0))
         else:
             screen.fill(BLACK)
 
-        if draw_box:
-            level_1 = pygame.Rect(50, 50, 100, 100)
-            pygame.draw.rect(screen, BLACK, level_1)
+        # Level boxes
+        if level_boxes and levels:
+            for box in level_boxes:
+                clicked_level_id = box.update(mouse_pos, mouse_up)
+                box.draw(screen)
 
-            level_2 = pygame.Rect(200, 50, 100, 100)
-            pygame.draw.rect(screen, BLACK, level_2)
+                if clicked_level_id:
+                    level = levels[clicked_level_id - 1]
+                    active_osint = OSINTBox(level)
 
-            level_3 = pygame.Rect(350, 50, 100, 100)
-            pygame.draw.rect(screen, BLACK, level_3)
-
-            level_4 = pygame.Rect(500, 50, 100, 100)
-            pygame.draw.rect(screen, BLACK, level_4)
-
-            level_5 = pygame.Rect(650, 50, 100, 100)
-            pygame.draw.rect(screen, BLACK, level_5)
-
+        # UI buttons
         for button in buttons:
-            ui_action = button.update(pygame.mouse.get_pos(), mouse_up, sound)
-            if ui_action is not None:
-                return ui_action
+            action = button.update(mouse_pos, mouse_up, sound)
+            if action is not None:
+                return action
 
         buttons.draw(screen)
         pygame.display.flip()
+        clock.tick(60)
+
+
 
