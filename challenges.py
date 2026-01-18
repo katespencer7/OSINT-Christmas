@@ -6,6 +6,8 @@ GRAY = (120, 120, 120)
 GREEN = (0, 200, 0)
 BLACK = (0, 0, 0)
 
+points = {1:1000, 2:1500, 3:2000, 4:3000, 5:4000}
+
 class OSINTLevel:
     """
     Represents a single OSINT challenge.
@@ -34,26 +36,47 @@ class LevelBox(Sprite):
     """
     Clickable level selector icon for city screens.
     """
-    def __init__(self, position, level, unlocked=True):
+    def __init__(self, position, level, unlocked=True, sound=None):
         super().__init__()
 
         self.level = level
         self.unlocked = unlocked
-        self.hovered = False
+        self.sound = sound
+        
+        image = pygame.image.load(f"assets/level_icons/level_{level}.png").convert_alpha()
+        scaled_image = pygame.transform.scale(image, (150, 150))
+        scaled_image_hover = pygame.transform.scale(image, (int(150 * 1.1), int(150 * 1.1)))
+        
+        self.images = [scaled_image, scaled_image_hover]
+        rect_default = scaled_image.get_rect(topleft=position)
+        rect_hover = scaled_image_hover.get_rect(center=rect_default.center)
+        self.rects = [rect_default, rect_hover]
+        
+        self.mouse_over = False
 
-        self.image = pygame.image.load(f"assets/level_icons/level_{level}.png").convert_alpha()
-        self.image = pygame.transform.scale(self.image, (250, 250)) # scale icon
-        self.rect = self.image.get_rect(topleft=position)
+    # properties that vary the image and its rect when the mouse is over the element
+    @property
+    def image(self):
+        return self.images[1] if self.mouse_over else self.images[0]
 
-    def update(self, mouse_pos, mouse_up):
-        if not self.unlocked: # if level is locked, do nothing
+    @property
+    def rect(self):
+        return self.rects[1] if self.mouse_over else self.rects[0]
+
+    def update(self, mouse_pos, mouse_up, sound=None):
+        if not self.unlocked:  # if level is locked, do nothing
             return None
 
-        if self.rect.collidepoint(mouse_pos) and mouse_up:
-            return self.level
+        if self.rect.collidepoint(mouse_pos):
+            self.mouse_over = True
+            if mouse_up:
+                if sound:
+                    sound.play()
+                return self.level
         else:
-            return None
-
+            self.mouse_over = False
+        
+        return None
 
     def draw(self, surface):
         surface.blit(self.image, self.rect)
@@ -107,97 +130,172 @@ class TextInput:
 
 
 class OSINTBox(Sprite):
-    """
-    Box overlay for OSINT challenges, activates when a level is clicked
-    """
-    def __init__(self, level: OSINTLevel):
+    def __init__(self, level: OSINTLevel, return_state):
         super().__init__()
 
         self.level = level
+        self.return_state = return_state
         self.visible = True
         self.completed = False
 
-        self.rect = pygame.Rect(100, 80, 600, 440) # rectangle background
+        # ---------- Layout ----------
+        self.panel_rect = pygame.Rect(60, 60, 680, 480)
 
-        self.image = pygame.image.load(level.image_path).convert() 
-        self.image = pygame.transform.scale(self.image, (400, 250))
+        self.image_rect = pygame.Rect(90, 110, 400, 280)
+        self.sidebar_rect = pygame.Rect(520, 110, 200, 360)
+
+        # ---------- Image ----------
+        self.image = pygame.image.load(level.image_path).convert()
+        self.image = pygame.transform.scale(self.image, self.image_rect.size)
+
+        # ---------- Fonts ----------
+        self.title_font = pygame.font.Font("assets/ByteBounce.ttf", 28)
+        self.text_font = pygame.font.Font("assets/ByteBounce.ttf", 18)
+
+        # ---------- Text Input ----------
+        self.textinput = TextInput(
+            pygame.Rect(
+                self.sidebar_rect.left + 10,
+                self.sidebar_rect.top + 120,
+                self.sidebar_rect.width - 20,
+                40
+            )
+        )
+
+        # ---------- Buttons ----------
+        from game import Button, UIElement, GameState
+        self.return_btn = UIElement(
+            center_position=(140, 570),
+            font_size=20,
+            bg_rgb=BLACK,
+            text_rgb=WHITE,
+            text="<--- Return to levels",
+            action=self.return_state,
+        )
         
-        self.textinput = TextInput(pygame.Rect(250, 400, 300, 40))
+        self.enter_button = Button(
+            self.sidebar_rect.left + 40,
+            self.sidebar_rect.top + 180,
+            "assets/buttons/enter_button.png",
+            1.0
+        )
 
-        # Enter button
-        from game import Button
-        self.enter_button = Button(555, 400, "assets/enter_button.png", 1.0)
-        self.enter_button.rect.centery = 420  # Align vertically with text input center
-        self.enter_action = False
+        self.back_rect = pygame.Rect(90, 80, 220, 24)
+
 
     def update(self, events):
-        """
-        Handle keyboard input while OSINT box is open.
-        """
+        if not self.visible:
+            return None
+
+        # Update text input
         self.textinput.update(events)
 
         for event in events:
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:
-                    return self.validate_coordinates()
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
 
+            if event.type == pygame.KEYDOWN:
+                # Submit with ENTER key
+                if event.key == pygame.K_RETURN:
+                    if self.textinput.value:
+                        user_input = self.textinput.value
+                        return self.check_answer(user_input)
+                    else: continue
+
+                # Escape = return to levels
                 if event.key == pygame.K_ESCAPE:
                     self.visible = False
+                    return self.return_state
 
-        # Handle enter button
-        if self.enter_action:
-            self.enter_action = False
-            return self.validate_coordinates()
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mouse_pos = event.pos
+
+                # Submit button clicked
+                if self.enter_button.rect.collidepoint(mouse_pos):
+                    user_input = self.textinput.value
+                    return self.check_answer(user_input)
+
+                # Return button clicked
+                if self.return_btn.rect.collidepoint(mouse_pos):
+                    self.visible = False
+                    return self.return_state
 
         return None
 
+
     def validate_coordinates(self):
-        """
-        Compare user input to solution.
-        """
-        # user_input = self.textinput.text
-        # solution = self.level.answer
+        user = self.textinput.text.replace(" ", "")
+        solution = ",".join(self.level.answer)
 
-        # if user_input.replace(" ", "") == ",".join(solution):
-        #     self.completed = True
-        #     self.visible = False
-        #     return True
+        if user == solution:
+            self.completed = True
+            self.visible = False
+            return True
 
-        # return False
-        pass
+        return False
+
 
     def draw(self, surface):
-        """
-        Draw modal overlay + contents.
-        """
         if not self.visible:
             return
 
-        # overlay of background image ---- # FIXME
-        overlay = pygame.Surface((surface.get_width(), surface.get_height()), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
-        surface.blit(overlay, (0, 0))
+        # Full black background (Figma-style)
+        surface.fill((0, 0, 0))
 
-        pygame.draw.rect(surface, (30, 30, 30), self.rect, border_radius=12) # panel background
-        # pygame.draw.rect(surface, (255, 255, 255), self.rect, 3, border_radius=12) # panel border
+        # Level image
+        surface.blit(self.image, self.image_rect.topleft)
 
-        surface.blit(self.image, (200, 120)) # challenge image
-        self.textinput.draw(surface) # text input box
+        # Sidebar (keep or remove depending on mockup)
+        pygame.draw.rect(
+            surface,
+            (40, 40, 40),
+            self.sidebar_rect,
+            border_radius=8
+        )
 
-        # Draw enter button
-        action = self.enter_button.draw(surface)
-        if action:
-            self.enter_action = True
+        # Level title
+        title = self.title_font.render(
+            f"Level {self.level.level_id}",
+            True,
+            (255, 255, 255)
+        )
+        surface.blit(
+            title,
+            (self.sidebar_rect.left + 12, self.sidebar_rect.top + 20)
+        )
+
+        # Instructions
+        instructions = self.text_font.render(
+            "Enter solution in form 0.000,0.000",
+            True,
+            (200, 200, 200)
+        )
+        surface.blit(
+            instructions,
+            (self.sidebar_rect.left + 12, self.sidebar_rect.top + 70)
+        )
+
+        # Input box
+        self.textinput.draw(surface)
+
+        # Submit button
+        self.enter_button.draw(surface)
+
+        # Return button
+        self.return_btn.draw(surface)
+
+
 
 
     
 
-def osint_level_screen(screen, player, level, click_sound):
-    """
-    Runs the OSINT challenge loop.
-    Returns a GameState when finished.
-    """
-    pass
+# def osint_level_screen(screen, player, level, click_sound):
+#     """
+#     Runs the OSINT challenge loop.
+#     Returns a GameState when finished.
+#     """
+#     pass
 
 
 def load_city_levels(city_name:str):

@@ -1,9 +1,9 @@
-from game import *
+from screens import *
 
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("BEGIN GAME")
+    pygame.display.set_caption("Christmas OSINT Adventure")
     clock = pygame.time.Clock()
     game_state = GameState.TITLE
         
@@ -24,12 +24,8 @@ def main():
             player = load_game()
             game_state = play_level(screen, player, click_sound)
 
-        if game_state == GameState.NEXT_LEVEL:
-            player.current_level += 1
-            game_state = play_level(screen, player, click_sound)
-
-        elif game_state == GameState.CHARACTER:
-            game_state = character_screen(screen)
+        # elif game_state == GameState.CHARACTER:
+        #     game_state = character_screen(screen)
 
         elif game_state == GameState.PORTLAND: # Portland game screen
             game_state = portland_screen(screen, click_sound)

@@ -5,13 +5,51 @@ from pygame.sprite import Sprite, RenderUpdates
 import sys, json, os
 from enum import Enum
 
-from challenges import load_city_levels, LevelBox, OSINTBox, osint_level_screen
+from challenges import load_city_levels, LevelBox, OSINTBox
 
-# Colors
+# global variables
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 WIDTH, HEIGHT = 800, 600
 
+# animation variables
+center_x = WIDTH // 2
+center_y = HEIGHT // 2
+max_radius = max(WIDTH, HEIGHT) // 2 + 50
+animation_speed = 5
+
+def play_circle_animation(screen, state:GameState):
+    """Plays the expanding circle animation."""
+    clock = pygame.time.Clock()
+    global current_radius
+    current_radius = 0
+    if state == GameState.PORTLAND:
+        background = pygame.image.load(os.path.join('assets/background_images/portland_pixel.png')).convert()
+    elif state == GameState.CORVALLIS:
+        background = pygame.image.load(os.path.join('assets/background_images/corvallis_pixel.png')).convert()
+    elif state == GameState.EUGENE:
+        background = pygame.image.load(os.path.join('assets/background_images/eugene_pixel.png')).convert()
+    background = pygame.transform.scale(background, (WIDTH, HEIGHT))     # Scale the image to fit the window size
+
+    
+    while current_radius < max_radius:
+        screen.fill(BLACK)
+
+        # clip screen to circle
+        clip_rect = pygame.Rect(
+            center_x - current_radius,
+            center_y - current_radius,
+            current_radius * 2,
+            current_radius * 2
+        )
+
+        screen.set_clip(clip_rect)
+        screen.blit(background, (0, 0))
+        screen.set_clip(None)
+        pygame.display.flip()
+
+        current_radius += 10   # speed control (bigger = faster)
+        clock.tick(80)
 
 def create_surface_with_text(text, font_size, text_rgb, bg_rgb=None):
     """ Returns surface with text written on """
@@ -96,8 +134,7 @@ class GameState(Enum):
     QUIT = -1
     TITLE = 0
     NEWGAME = 1
-    CHARACTER = 2
-    NEXT_LEVEL = 3
+    # CHARACTER = 2
     OSINT = 4
     
     PORTLAND = 10
@@ -122,25 +159,55 @@ class Player:
             json.dump(data, f, indent=4)
 
 
-class Character: # TODO
-    """ Character selection functions """
-    def __init__(self):
-        return
+# class Character: # TODO
+#     """ Character selection functions """
+#     def __init__(self):
+#         return
 
 
 class Button(Sprite):
     """
     Button class for UI elements. From https://github.com/russs123/pygame_tutorials/blob/main/Button/button.py
     """
-    def __init__(self, x, y, image_path, scale):
+    def __init__(self, x, y, image_path, scale, action=None):
         super().__init__()
         image = pygame.image.load(image_path).convert_alpha()
         width = image.get_width()
         height = image.get_height()
-        self.image = pygame.transform.scale(image, (int(width * scale), int(height * scale)))
-        self.rect = self.image.get_rect()
-        self.rect.topleft = (x, y)
+        scaled_image = pygame.transform.scale(image, (int(width * scale), int(height * scale)))
+        scaled_image_hover = pygame.transform.scale(image, (int(width * scale * 1.1), int(height * scale * 1.1)))
+        
+        # Store images and rects as lists for hover effect
+        self.images = [scaled_image, scaled_image_hover]
+        rect_default = scaled_image.get_rect(topleft=(x, y))
+        rect_hover = scaled_image_hover.get_rect(center=rect_default.center)
+        self.rects = [rect_default, rect_hover]
+        
+        self.action = action
         self.clicked = False
+        self.mouse_over = False
+
+    # properties that vary the image and its rect when the mouse is over the element
+    @property
+    def image(self):
+        return self.images[1] if self.mouse_over else self.images[0]
+
+    @property
+    def rect(self):
+        return self.rects[1] if self.mouse_over else self.rects[0]
+
+    def update(self, mouse_pos, mouse_up, sound):
+        """ Updates the element's appearance depending on the mouse position
+            and returns the button's action if clicked.
+        """
+        if self.rect.collidepoint(mouse_pos):
+            self.mouse_over = True
+            if mouse_up:
+                if sound:
+                    sound.play()
+                return self.action
+        else:
+            self.mouse_over = False
 
     def draw(self, surface):
         action = False
@@ -162,132 +229,6 @@ class Button(Sprite):
         return action
 
 
-def title_screen(screen, sound=None):
-    background_image = pygame.image.load(os.path.join('assets/background_images/background_pixel.png')).convert()
-    background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))     # Scale the image to fit the window size
-
-    begin_element = UIElement(
-        center_position=(300, 475),
-        font_size=30,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text="Begin",
-        action=GameState.NEWGAME,
-    )
-
-    quit_element = UIElement(
-        center_position=(500, 475),
-        font_size=30,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text="Quit",
-        action=GameState.QUIT,
-    )
-
-    character_element = UIElement(
-        center_position=(400, 175),
-        font_size=30,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text="Character Selection",
-        action=GameState.CHARACTER,
-    )
-
-    buttons = RenderUpdates(begin_element, character_element, quit_element)
-    return game_loop(screen, buttons, sound, background_image)
-
-def portland_screen(screen, sound=None):
-    background_image = pygame.image.load(os.path.join('assets/background_images/portland_pixel.png')).convert()
-    background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
-    # overlay = pygame.Surface((surface.get_width(), surface.get_height()), pygame.SRCALPHA)
-    # overlay.fill((0, 0, 0, 180))
-    # surface.blit(overlay, (0, 0))
-
-    return_btn = UIElement(
-        center_position=(140, 570),
-        font_size=20,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text="<--- Return to menu",
-        action=GameState.NEWGAME,
-    )
-
-    levels = load_city_levels("portland")
-    level_boxes = RenderUpdates()
-
-    ICON_SIZE = 160
-    GAP_X = 40
-    GAP_Y = 40
-
-    START_X = 100
-    START_Y = 60
-
-    for i, level in enumerate(levels):
-        if i < 3:
-            col, row = i, 0
-        else:
-            col, row = i - 3, 1
-
-        x = START_X + col * (ICON_SIZE + GAP_X)
-        y = START_Y + row * (ICON_SIZE + GAP_Y)
-
-        box = LevelBox(position=(x, y), level=(level.level_id), unlocked=True)
-        level_boxes.add(box)
-
-    buttons = RenderUpdates(return_btn)
-
-    return game_loop(screen, buttons, sound, background_image, level_boxes=level_boxes, levels=levels)
-
-
-def eugene_screen(screen, sound=None):
-    background_image = pygame.image.load(os.path.join('assets/background_images/eugene_pixel.png')).convert()
-    background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))     # Scale the image to fit the window size
-
-    return_btn = UIElement(
-        center_position=(140, 570),
-        font_size=20,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text="<--- Return to menu",
-        action=GameState.NEWGAME,
-    )
-
-    buttons = RenderUpdates(return_btn)
-    return game_loop(screen, buttons, sound, background_image)
-
-
-def corvallis_screen(screen, sound=None):
-    background_image = pygame.image.load(os.path.join('assets/background_images/corvallis_pixel.png')).convert()
-    background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))     # Scale the image to fit the window size
-
-    return_btn = UIElement(
-        center_position=(140, 570),
-        font_size=20,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text="<--- Return to menu",
-        action=GameState.NEWGAME,
-    )
-
-    buttons = RenderUpdates(return_btn)
-    return game_loop(screen, buttons, sound, background_image)
-
-
-def character_screen(screen, sound=None):
-    ''' Character selection page. Uses Character class for character values '''
-    return_btn = UIElement(
-        center_position=(140, 570),
-        font_size=20,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text="<--- Return to start",
-        action=GameState.TITLE,
-    )
-
-    buttons = RenderUpdates(return_btn)
-    return game_loop(screen, buttons, sound)
-
-
 def play_level(screen, player, sound=None):
     return_btn = UIElement(
         center_position=(140, 570),
@@ -297,50 +238,25 @@ def play_level(screen, player, sound=None):
         text="<--- Return to start",
         action=GameState.TITLE,
     )
-    nextlevel_btn = UIElement(
-        center_position=(400, 400),
-        font_size=30,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text=f"Next level ({player.current_level + 1})",
-        action=GameState.NEXT_LEVEL,
-    )
-    portland_btn = UIElement(
-        center_position=(200, 100),
-        font_size=30,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text=f"Portland",
-        action=GameState.PORTLAND,
-    )
-    eugene_btn = UIElement(
-        center_position=(400, 100),
-        font_size=30,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text=f"Eugene",
-        action=GameState.EUGENE,
-    )
-    corvallis_btn = UIElement(
-        center_position=(600, 100),
-        font_size=30,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text=f"Corvallis",
-        action=GameState.CORVALLIS,
-    )
 
-    buttons = RenderUpdates(return_btn, nextlevel_btn, portland_btn, eugene_btn, corvallis_btn)
+    portland_btn = Button(300, 100, 'assets/buttons/portland_button.png', 2, action=GameState.PORTLAND)
+    eugene_btn = Button(300, 250, 'assets/buttons/eugene_button.png', 2, action=GameState.EUGENE)
+    corvallis_btn = Button(300, 400, 'assets/buttons/corvallis_button.png', 2, action=GameState.CORVALLIS)
+
+    buttons = RenderUpdates(return_btn, portland_btn, eugene_btn, corvallis_btn)
     return game_loop(screen, buttons, sound)
 
 
-def game_loop(screen, buttons, sound=None, background=None, level_boxes=None, levels=None):
+def game_loop(screen, buttons, sound=None, background=None, level_boxes=None, levels=None, draw_extra=None):
     active_osint = None
     clock = pygame.time.Clock()
 
     while True:
         mouse_up = False
         events = pygame.event.get()
+
+        if draw_extra:
+            draw_extra(screen)
 
         for event in events:
             if event.type == pygame.QUIT:
@@ -350,7 +266,6 @@ def game_loop(screen, buttons, sound=None, background=None, level_boxes=None, le
 
         mouse_pos = pygame.mouse.get_pos()
 
-        # ---------------- OSINT MODAL ACTIVE ----------------
         if active_osint:
             result = active_osint.update(events)
 
@@ -371,31 +286,30 @@ def game_loop(screen, buttons, sound=None, background=None, level_boxes=None, le
                 print("Incorrect!")
 
             continue
-        # ----------------------------------------------------
 
-        # Draw background
         if background:
             screen.blit(background, (0, 0))
         else:
             screen.fill(BLACK)
 
-        # Level boxes
         if level_boxes and levels:
             for box in level_boxes:
-                clicked_level_id = box.update(mouse_pos, mouse_up)
+                clicked_level_id = box.update(mouse_pos, mouse_up, sound)
                 box.draw(screen)
 
                 if clicked_level_id:
                     level = levels[clicked_level_id - 1]
-                    active_osint = OSINTBox(level)
+                    active_osint = OSINTBox(level, return_state=GameState.PORTLAND)
 
-        # UI buttons
         for button in buttons:
             action = button.update(mouse_pos, mouse_up, sound)
             if action is not None:
+                if action in (GameState.PORTLAND, GameState.CORVALLIS, GameState.EUGENE):
+                    play_circle_animation(screen, action)
                 return action
 
         buttons.draw(screen)
+        
         pygame.display.flip()
         clock.tick(60)
 

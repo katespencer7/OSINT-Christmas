@@ -1,55 +1,52 @@
 import pygame
-import pygame.locals as pl
-import pygame_textinput
-from pygame_textinput import TextInputVisualizer, TextInputManager
 
+# --- Configuration ---
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+FPS = 60
+CIRCLE_COLOR = (0, 0, 0)  # Black circle
+BACKGROUND_COLOR = (255, 255, 255)  # White background
+
+# --- Initialization ---
 pygame.init()
-
-# No arguments needed to get started
-textinput = TextInputVisualizer()
-
-# But more customization possible: Pass your own font object
-font = pygame.font.SysFont("Consolas", 55)
-# Create own manager with custom input validator
-manager = TextInputManager(validator = lambda input: len(input) <= 5)
-# Pass these to constructor
-textinput_custom = TextInputVisualizer(manager=manager, font_object=font)
-# Customize much more
-textinput_custom.cursor_width = 4
-textinput_custom.cursor_blink_interval = 400 # blinking interval in ms
-textinput_custom.antialias = False
-textinput_custom.font_color = (0, 85, 170)
-
-screen = pygame.display.set_mode((1000, 200))
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Circle Opening Screen Effect")
 clock = pygame.time.Clock()
 
-# Pygame now allows natively to enable key repeat:
-pygame.key.set_repeat(200, 25)
+# --- Animation Variables ---
+center_x = SCREEN_WIDTH // 2
+center_y = SCREEN_HEIGHT // 2
+# Calculate the maximum possible radius to cover the whole screen
+max_radius = max(SCREEN_WIDTH, SCREEN_HEIGHT) // 2 + 50
+current_radius = 0
+animation_speed = 5  # Speed of the radius increase (pixels per frame)
 
-while True:
-    screen.fill((225, 225, 225))
-
-    events = pygame.event.get()
-
-    # Feed it with events every frame
-    textinput.update(events)
-    textinput_custom.update(events)
-
-    # Get its surface to blit onto the screen
-    screen.blit(textinput.surface, (10, 10))
-    screen.blit(textinput_custom.surface, (10, 50))
-
-    # Modify attributes on the fly - the surface is only rerendered when .surface is accessed & if values changed
-    textinput_custom.font_color = [(c+10)%255 for c in textinput_custom.font_color]
-
-    # Check if user is exiting or pressed return
-    for event in events:
+# --- Main Game Loop ---
+running = True
+while running:
+    # Event handling
+    for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            exit()
+            running = False
 
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-            print(f"User pressed enter! Input so far: {textinput.value}")
+    # Update animation
+    if current_radius < max_radius:
+        current_radius += animation_speed
+    else:
+        # Stop animation once the screen is covered
+        pass 
 
-    pygame.display.update()
-    clock.tick(30)
-    
+    # Drawing
+    screen.fill(BACKGROUND_COLOR)  # Fill background first
+
+    # Draw the expanding circle
+    pygame.draw.circle(screen, CIRCLE_COLOR, (center_x, center_y), current_radius)
+
+    # Update the display
+    pygame.display.flip()
+
+    # Cap the frame rate
+    clock.tick(FPS)
+
+# Quit Pygame
+pygame.quit()
