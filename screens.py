@@ -102,8 +102,9 @@ def level_display(sound, level_boxes, levels):
         x = START_X + col * (ICON_SIZE + GAP_X)
         y = START_Y + row * (ICON_SIZE + GAP_Y)
 
-        box = LevelBox(position=(x, y), level=(level.level_id), unlocked=True, sound=sound)
-        level_boxes.add(box)
+        # Use Button for level icons so hover/click behavior is shared
+        btn = Button(x, y, f"assets/level_icons/level_{level.level_id}.png", size=(ICON_SIZE, ICON_SIZE), action=level.level_id, unlocked=True,)
+        level_boxes.add(btn)
 
 
 # def character_screen(screen, sound=None):

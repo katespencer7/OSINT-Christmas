@@ -31,57 +31,6 @@ class OSINTLevel:
         lat, lon = anwsers[0].strip().split(",")
         return [lat, lon]
 
-
-class LevelBox(Sprite):
-    """
-    Clickable level selector icon for city screens.
-    """
-    def __init__(self, position, level, unlocked=True, sound=None):
-        super().__init__()
-
-        self.level = level
-        self.unlocked = unlocked
-        self.sound = sound
-        
-        image = pygame.image.load(f"assets/level_icons/level_{level}.png").convert_alpha()
-        scaled_image = pygame.transform.scale(image, (150, 150))
-        scaled_image_hover = pygame.transform.scale(image, (int(150 * 1.1), int(150 * 1.1)))
-        
-        self.images = [scaled_image, scaled_image_hover]
-        rect_default = scaled_image.get_rect(topleft=position)
-        rect_hover = scaled_image_hover.get_rect(center=rect_default.center)
-        self.rects = [rect_default, rect_hover]
-        
-        self.mouse_over = False
-
-    # properties that vary the image and its rect when the mouse is over the element
-    @property
-    def image(self):
-        return self.images[1] if self.mouse_over else self.images[0]
-
-    @property
-    def rect(self):
-        return self.rects[1] if self.mouse_over else self.rects[0]
-
-    def update(self, mouse_pos, mouse_up, sound=None):
-        if not self.unlocked:  # if level is locked, do nothing
-            return None
-
-        if self.rect.collidepoint(mouse_pos):
-            self.mouse_over = True
-            if mouse_up:
-                if sound:
-                    sound.play()
-                return self.level
-        else:
-            self.mouse_over = False
-        
-        return None
-
-    def draw(self, surface):
-        surface.blit(self.image, self.rect)
-
-
 class TextInput:
     """
     Text input box for entering coordinates on OSINT game screen.

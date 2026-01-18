@@ -5,7 +5,7 @@ from pygame.sprite import Sprite, RenderUpdates
 import sys, json, os
 from enum import Enum
 
-from challenges import load_city_levels, LevelBox, OSINTBox
+from challenges import load_city_levels, OSINTBox
 
 # global variables
 WHITE = (255, 255, 255)
@@ -17,54 +17,6 @@ center_x = WIDTH // 2
 center_y = HEIGHT // 2
 max_radius = max(WIDTH, HEIGHT) // 2 + 50
 animation_speed = 5
-
-def play_circle_animation(screen, state:GameState):
-    """Plays the expanding circle animation."""
-    clock = pygame.time.Clock()
-    global current_radius
-    current_radius = 0
-    if state == GameState.PORTLAND:
-        background = pygame.image.load(os.path.join('assets/background_images/portland_pixel.png')).convert()
-    elif state == GameState.CORVALLIS:
-        background = pygame.image.load(os.path.join('assets/background_images/corvallis_pixel.png')).convert()
-    elif state == GameState.EUGENE:
-        background = pygame.image.load(os.path.join('assets/background_images/eugene_pixel.png')).convert()
-    background = pygame.transform.scale(background, (WIDTH, HEIGHT))     # Scale the image to fit the window size
-
-    
-    while current_radius < max_radius:
-        screen.fill(BLACK)
-
-        # clip screen to circle
-        clip_rect = pygame.Rect(
-            center_x - current_radius,
-            center_y - current_radius,
-            current_radius * 2,
-            current_radius * 2
-        )
-
-        screen.set_clip(clip_rect)
-        screen.blit(background, (0, 0))
-        screen.set_clip(None)
-        pygame.display.flip()
-
-        current_radius += 10   # speed control (bigger = faster)
-        clock.tick(80)
-
-def create_surface_with_text(text, font_size, text_rgb, bg_rgb=None):
-    """ Returns surface with text written on """
-    font = pygame.font.Font('assets/ByteBounce.ttf', int(font_size))
-    surface = font.render(text, True, text_rgb, bg_rgb)  # antialias=True
-    return surface.convert_alpha()
-
-def load_game():
-    ''' For loading game information from save_data.json. '''
-    try:
-        with open("save_data.json", "r") as f:
-            data = json.load(f)
-        return Player(**data)
-    except FileNotFoundError:
-        return Player()  # fresh save
 
 
 class UIElement(Sprite):
@@ -169,23 +121,30 @@ class Button(Sprite):
     """
     Button class for UI elements. From https://github.com/russs123/pygame_tutorials/blob/main/Button/button.py
     """
-    def __init__(self, x, y, image_path, scale, action=None):
+    def __init__(self, x, y, image_path, scale=None, size=None, action=None, unlocked=True):
         super().__init__()
         image = pygame.image.load(image_path).convert_alpha()
-        width = image.get_width()
-        height = image.get_height()
-        scaled_image = pygame.transform.scale(image, (int(width * scale), int(height * scale)))
-        scaled_image_hover = pygame.transform.scale(image, (int(width * scale * 1.1), int(height * scale * 1.1)))
+        
+        if size is not None:
+            scaled_image = pygame.transform.scale(image, (int(size[0]), int(size[1])))
+            hover_size = (int(size[0] * 1.1), int(size[1] * 1.1))
+            scaled_image_hover = pygame.transform.scale(image, hover_size)
+        elif scale is not None:
+            width = image.get_width()
+            height = image.get_height()
+            scaled_image = pygame.transform.scale(image, (int(width * scale), int(height * scale)))
+            scaled_image_hover = pygame.transform.scale(image, (int(width * scale * 1.1), int(height * scale * 1.1)))
         
         # Store images and rects as lists for hover effect
         self.images = [scaled_image, scaled_image_hover]
         rect_default = scaled_image.get_rect(topleft=(x, y))
         rect_hover = scaled_image_hover.get_rect(center=rect_default.center)
         self.rects = [rect_default, rect_hover]
-        
+
         self.action = action
         self.clicked = False
         self.mouse_over = False
+        self.unlocked = unlocked
 
     # properties that vary the image and its rect when the mouse is over the element
     @property
@@ -197,9 +156,13 @@ class Button(Sprite):
         return self.rects[1] if self.mouse_over else self.rects[0]
 
     def update(self, mouse_pos, mouse_up, sound):
-        """ Updates the element's appearance depending on the mouse position
-            and returns the button's action if clicked.
+        """ Updates appearance and returns `self.action` on click.
+        If the button is locked (`unlocked=False`) this is a no-op.
         """
+        if not self.unlocked:
+            self.mouse_over = False
+            return None
+
         if self.rect.collidepoint(mouse_pos):
             self.mouse_over = True
             if mouse_up:
@@ -211,11 +174,9 @@ class Button(Sprite):
 
     def draw(self, surface):
         action = False
-        #get mouse position
-        pos = pygame.mouse.get_pos()
+        pos = pygame.mouse.get_pos() # get mouse position
 
-        #check mouseover and clicked conditions
-        if self.rect.collidepoint(pos):
+        if self.rect.collidepoint(pos):        #check mouseover and clicked conditions
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
                 self.clicked = True
                 action = True
@@ -223,10 +184,59 @@ class Button(Sprite):
         if pygame.mouse.get_pressed()[0] == 0:
             self.clicked = False
 
-        #draw button on screen
-        surface.blit(self.image, (self.rect.x, self.rect.y))
-
+        surface.blit(self.image, (self.rect.x, self.rect.y)) # draw button on screen
         return action
+
+
+def play_circle_animation(screen, state:GameState):
+    """Plays the expanding circle animation."""
+    clock = pygame.time.Clock()
+    global current_radius
+    current_radius = 0
+    if state == GameState.PORTLAND:
+        background = pygame.image.load(os.path.join('assets/background_images/portland_pixel.png')).convert()
+    elif state == GameState.CORVALLIS:
+        background = pygame.image.load(os.path.join('assets/background_images/corvallis_pixel.png')).convert()
+    elif state == GameState.EUGENE:
+        background = pygame.image.load(os.path.join('assets/background_images/eugene_pixel.png')).convert()
+    background = pygame.transform.scale(background, (WIDTH, HEIGHT))     # Scale the image to fit the window size
+
+    
+    while current_radius < max_radius:
+        screen.fill(BLACK)
+
+        # clip screen to circle
+        clip_rect = pygame.Rect(
+            center_x - current_radius,
+            center_y - current_radius,
+            current_radius * 2,
+            current_radius * 2
+        )
+
+        screen.set_clip(clip_rect)
+        screen.blit(background, (0, 0))
+        screen.set_clip(None)
+        pygame.display.flip()
+
+        current_radius += 10   # speed control (bigger = faster)
+        clock.tick(80)
+
+
+def create_surface_with_text(text, font_size, text_rgb, bg_rgb=None):
+    """ Returns surface with text written on """
+    font = pygame.font.Font('assets/ByteBounce.ttf', int(font_size))
+    surface = font.render(text, True, text_rgb, bg_rgb)  # antialias=True
+    return surface.convert_alpha()
+
+
+def load_game():
+    ''' For loading game information from save_data.json. '''
+    try:
+        with open("save_data.json", "r") as f:
+            data = json.load(f)
+        return Player(**data)
+    except FileNotFoundError:
+        return Player()  # fresh save
 
 
 def play_level(screen, player, sound=None):
