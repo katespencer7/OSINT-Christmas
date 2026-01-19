@@ -265,9 +265,6 @@ def game_loop(screen, buttons, sound=None, background=None, level_boxes=None, le
         mouse_up = False
         events = pygame.event.get()
 
-        if draw_extra:
-            draw_extra(screen)
-
         for event in events:
             if event.type == pygame.QUIT:
                 return GameState.QUIT
@@ -277,7 +274,7 @@ def game_loop(screen, buttons, sound=None, background=None, level_boxes=None, le
         mouse_pos = pygame.mouse.get_pos()
 
         if active_osint:
-            result = active_osint.update(events)
+            result = active_osint.update(events) #FIXME solution management
 
             if background:
                 screen.blit(background, (0, 0))
@@ -302,6 +299,9 @@ def game_loop(screen, buttons, sound=None, background=None, level_boxes=None, le
         else:
             screen.fill(BLACK)
 
+        if draw_extra:
+            draw_extra(screen)
+
         if level_boxes and levels:
             for box in level_boxes:
                 clicked_level_id = box.update(mouse_pos, mouse_up, sound)
@@ -309,7 +309,7 @@ def game_loop(screen, buttons, sound=None, background=None, level_boxes=None, le
 
                 if clicked_level_id:
                     level = levels[clicked_level_id - 1]
-                    active_osint = OSINTBox(level, return_state=GameState.PORTLAND)
+                    active_osint = OSINTBox(level, return_state=GameState.PORTLAND) #FIXME hardcoded return state
 
         for button in buttons:
             action = button.update(mouse_pos, mouse_up, sound)
@@ -322,6 +322,4 @@ def game_loop(screen, buttons, sound=None, background=None, level_boxes=None, le
         
         pygame.display.flip()
         clock.tick(60)
-
-
 

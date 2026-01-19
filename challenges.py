@@ -1,5 +1,7 @@
-import pygame
+import pygame, shutil
 from pygame.sprite import Sprite
+# from datetime import datetime
+import os
 
 WHITE = (255, 255, 255)
 GRAY = (120, 120, 120)
@@ -30,6 +32,7 @@ class OSINTLevel:
         anwsers = open(f"osint_levels/{city_name}/{level_id}/{level_id}.txt", "r").readlines()
         lat, lon = anwsers[0].strip().split(",")
         return [lat, lon]
+
 
 class TextInput:
     """
@@ -62,7 +65,7 @@ class TextInput:
                     self.text += event.unicode
 
         self.cursor_timer += 1
-        if self.cursor_timer >= 5:  # blink every 5 frames
+        if self.cursor_timer >= 20:  # blink every 5 frames
             self.cursor_visible = not self.cursor_visible
             self.cursor_timer = 0
 
@@ -89,13 +92,12 @@ class OSINTBox(Sprite):
 
         # ---------- Layout ----------
         self.panel_rect = pygame.Rect(60, 60, 680, 480)
-
         self.image_rect = pygame.Rect(90, 110, 400, 280)
         self.sidebar_rect = pygame.Rect(520, 110, 200, 360)
 
         # ---------- Image ----------
-        self.image = pygame.image.load(level.image_path).convert()
-        self.image = pygame.transform.scale(self.image, self.image_rect.size)
+        self.image = pygame.image.load(level.image_path).convert_alpha()
+        self.image = pygame.transform.smoothscale(self.image, self.image_rect.size)
 
         # ---------- Fonts ----------
         self.title_font = pygame.font.Font("assets/ByteBounce.ttf", 28)
@@ -126,8 +128,10 @@ class OSINTBox(Sprite):
             self.sidebar_rect.left + 40,
             self.sidebar_rect.top + 180,
             "assets/buttons/enter_button.png",
-            1.0
+            1
         )
+
+        self.download_button = Button(100, self.image_rect.bottom + 30, "assets/buttons/download_button.png", 1.25)
 
         self.back_rect = pygame.Rect(90, 80, 220, 24)
 
@@ -138,6 +142,11 @@ class OSINTBox(Sprite):
 
         # Update text input
         self.textinput.update(events)
+        
+        # Update button hover states
+        mouse_pos = pygame.mouse.get_pos()
+        self.enter_button.update(mouse_pos, False, None)
+        self.download_button.update(mouse_pos, False, None)
 
         for event in events:
             if event.type == pygame.QUIT:
@@ -147,8 +156,8 @@ class OSINTBox(Sprite):
             if event.type == pygame.KEYDOWN:
                 # Submit with ENTER key
                 if event.key == pygame.K_RETURN:
-                    if self.textinput.value:
-                        user_input = self.textinput.value
+                    if self.textinput.text:
+                        user_input = self.textinput.text
                         return self.check_answer(user_input)
                     else: continue
 
@@ -160,17 +169,31 @@ class OSINTBox(Sprite):
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 mouse_pos = event.pos
 
-                # Submit button clicked
                 if self.enter_button.rect.collidepoint(mouse_pos):
-                    user_input = self.textinput.value
-                    return self.check_answer(user_input)
+                    user_input = self.textinput.text
+                    return self.validate_coordinates()
 
-                # Return button clicked
                 if self.return_btn.rect.collidepoint(mouse_pos):
                     self.visible = False
                     return self.return_state
 
-        return None
+                if self.download_button.rect.collidepoint(mouse_pos):
+                    self.download_image()
+
+            return None
+
+    def download_image(self):
+        """ Save the level image to Downloads folder. """
+        try:
+            downloads_path = os.path.expanduser("~/Downloads") # use downloads folder
+            filename = f"osint_level_{self.level.level_id}.jpg"
+            save_path = os.path.join(downloads_path, filename)
+            
+            shutil.copy(self.level.image_path, save_path) # download the image
+            self.download_message = "Image downloaded successfully!"
+        
+        except Exception as e:
+            self.download_message = "Error downloading image."
 
 
     def validate_coordinates(self):
@@ -189,55 +212,25 @@ class OSINTBox(Sprite):
         if not self.visible:
             return
 
-        # Full black background (Figma-style)
-        surface.fill((0, 0, 0))
+        surface.fill(BLACK)
+        surface.blit(self.image, self.image_rect.topleft) # challenge image
+        pygame.draw.rect(surface, (40, 40, 40), self.sidebar_rect, border_radius=8) # sidebar
+        title = self.title_font.render(f"Level {self.level.level_id}", True, (255, 255, 255))
+        surface.blit(title, (self.sidebar_rect.left + 12, self.sidebar_rect.top + 20))
 
-        # Level image
-        surface.blit(self.image, self.image_rect.topleft)
+        instructions = self.text_font.render("Enter solution in form 0.000,0.000",True,(200, 200, 200))
+        surface.blit(instructions, (self.sidebar_rect.left + 12, self.sidebar_rect.top + 70))
 
-        # Sidebar (keep or remove depending on mockup)
-        pygame.draw.rect(
-            surface,
-            (40, 40, 40),
-            self.sidebar_rect,
-            border_radius=8
-        )
-
-        # Level title
-        title = self.title_font.render(
-            f"Level {self.level.level_id}",
-            True,
-            (255, 255, 255)
-        )
-        surface.blit(
-            title,
-            (self.sidebar_rect.left + 12, self.sidebar_rect.top + 20)
-        )
-
-        # Instructions
-        instructions = self.text_font.render(
-            "Enter solution in form 0.000,0.000",
-            True,
-            (200, 200, 200)
-        )
-        surface.blit(
-            instructions,
-            (self.sidebar_rect.left + 12, self.sidebar_rect.top + 70)
-        )
-
-        # Input box
         self.textinput.draw(surface)
-
-        # Submit button
         self.enter_button.draw(surface)
-
-        # Return button
         self.return_btn.draw(surface)
+        self.download_button.draw(surface)
 
+        if hasattr(self, "download_message") and self.download_message: # draw download message
+            message_surf = self.text_font.render(self.download_message, True, (255, 255, 255))
+            message_rect = message_surf.get_rect(center=(self.panel_rect.centerx - 50, self.image_rect.bottom + 50))
+            surface.blit(message_surf, message_rect)
 
-
-
-    
 
 # def osint_level_screen(screen, player, level, click_sound):
 #     """

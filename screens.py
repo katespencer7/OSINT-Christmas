@@ -1,8 +1,8 @@
 from game import *
 
 def title_screen(screen, sound=None):
-    begin_button = Button(175, 350, 'assets/buttons/begin_button.png', 2, action=GameState.NEWGAME)
-    quit_button = Button(475, 350, 'assets/buttons/quit_button.png', 2, action=GameState.QUIT)
+    quit_button = Button(200, 400, 'assets/buttons/quit_button.png', 2, action=GameState.QUIT)
+    begin_button = Button(450, 400, 'assets/buttons/begin_button.png', 2, action=GameState.NEWGAME)
 
     buttons = RenderUpdates(quit_button, begin_button)
 
