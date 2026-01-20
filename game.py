@@ -5,7 +5,7 @@ from pygame.sprite import Sprite, RenderUpdates
 import sys, json, os
 from enum import Enum
 
-from challenges import load_city_levels, OSINTBox
+from challenges import load_city_levels, osint_level_page
 
 # global variables
 WHITE = (255, 255, 255)
@@ -93,18 +93,21 @@ class GameState(Enum):
     CORVALLIS = 11
     EUGENE = 12
 
+    DOWNLOAD = 20
+    CHECK = 21
+
 
 class Player:
-    """ Stores information about a player """
+    """ Stores information about a player: points and name (under save_data.json)."""
 
-    def __init__(self, score=0, current_level=1):
-        self.score = score
-        self.current_level = current_level
+    def __init__(self, points=0, name="Player"):
+        self.points = points
+        self.name = name
 
     def save_game(player):
         data = {
-            "score": player.score,
-            "current_level": player.current_level,
+            "points": player.points,
+            "name": player.name,
         }
 
         with open("save_data.json", "w") as f:
@@ -257,7 +260,7 @@ def play_level(screen, player, sound=None):
     return game_loop(screen, buttons, sound)
 
 
-def game_loop(screen, buttons, sound=None, background=None, level_boxes=None, levels=None, draw_extra=None):
+def game_loop(screen, buttons, sound=None, background=None, city=None, level_boxes=None, levels=None, draw_extra=None):
     active_osint = None
     clock = pygame.time.Clock()
 
@@ -309,7 +312,11 @@ def game_loop(screen, buttons, sound=None, background=None, level_boxes=None, le
 
                 if clicked_level_id:
                     level = levels[clicked_level_id - 1]
-                    active_osint = OSINTBox(level, return_state=GameState.PORTLAND) #FIXME hardcoded return state
+                    result = osint_level_page(screen, level, sound, city)
+                    # Handle the result from osint_level_page
+                    if result == "TITLE":
+                        return GameState.TITLE
+                    # Add more result handling as needed
 
         for button in buttons:
             action = button.update(mouse_pos, mouse_up, sound)

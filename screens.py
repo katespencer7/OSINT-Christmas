@@ -38,7 +38,7 @@ def portland_screen(screen, sound=None):
     level_display(sound, level_boxes, levels)
 
     buttons = RenderUpdates(return_btn)
-    return game_loop(screen, buttons, sound, background_image, level_boxes=level_boxes, levels=levels)
+    return game_loop(screen, buttons, sound, background_image, city="portland", level_boxes=level_boxes, levels=levels)
 
 
 def eugene_screen(screen, sound=None):
@@ -60,7 +60,7 @@ def eugene_screen(screen, sound=None):
     level_display(sound, level_boxes, levels)
 
     buttons = RenderUpdates(return_btn)
-    return game_loop(screen, buttons, sound, background_image, level_boxes=level_boxes, levels=levels)
+    return game_loop(screen, buttons, sound, background_image, city="eugene" , level_boxes=level_boxes, levels=levels)
 
 
 def corvallis_screen(screen, sound=None):
@@ -82,7 +82,7 @@ def corvallis_screen(screen, sound=None):
     level_display(sound, level_boxes, levels)
 
     buttons = RenderUpdates(return_btn)
-    return game_loop(screen, buttons, sound, background_image, level_boxes=level_boxes, levels=levels)
+    return game_loop(screen, buttons, sound, background_image, city="corvallis", level_boxes=level_boxes, levels=levels)
 
 
 def level_display(sound, level_boxes, levels):
