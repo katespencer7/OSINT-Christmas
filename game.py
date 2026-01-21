@@ -1,8 +1,6 @@
 import pygame
-# import pygame.freetype
 from pygame.sprite import Sprite, RenderUpdates
-# from pygame.rect import Rect
-import sys, json, os
+import json, os
 from enum import Enum
 
 from challenges import load_city_levels, osint_level_page
@@ -242,25 +240,7 @@ def load_game():
         return Player()  # fresh save
 
 
-def play_level(screen, player, sound=None):
-    return_btn = UIElement(
-        center_position=(140, 570),
-        font_size=20,
-        bg_rgb=BLACK,
-        text_rgb=WHITE,
-        text="<--- Return to start",
-        action=GameState.TITLE,
-    )
-
-    portland_btn = Button(300, 100, 'assets/buttons/portland_button.png', 2, action=GameState.PORTLAND)
-    eugene_btn = Button(300, 250, 'assets/buttons/eugene_button.png', 2, action=GameState.EUGENE)
-    corvallis_btn = Button(300, 400, 'assets/buttons/corvallis_button.png', 2, action=GameState.CORVALLIS)
-
-    buttons = RenderUpdates(return_btn, portland_btn, eugene_btn, corvallis_btn)
-    return game_loop(screen, buttons, sound)
-
-
-def game_loop(screen, buttons, sound=None, background=None, city=None, level_boxes=None, levels=None, draw_extra=None):
+def game_loop(screen, buttons, sound=None, background=None, city=None, level_boxes=None, levels=None, draw_extra=None, player=None):
     active_osint = None
     clock = pygame.time.Clock()
 
@@ -312,7 +292,7 @@ def game_loop(screen, buttons, sound=None, background=None, city=None, level_box
 
                 if clicked_level_id:
                     level = levels[clicked_level_id - 1]
-                    result = osint_level_page(screen, level, sound, city)
+                    result = osint_level_page(screen, level, sound, city, player)
                     # Handle the result from osint_level_page
                     if result == "TITLE":
                         return GameState.TITLE

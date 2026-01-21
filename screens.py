@@ -19,7 +19,25 @@ def title_screen(screen, sound=None):
     return game_loop(screen, buttons, sound, draw_extra=draw_title)
 
 
-def portland_screen(screen, sound=None):
+def play_level(screen, player, sound=None):
+    return_btn = UIElement(
+        center_position=(140, 570),
+        font_size=20,
+        bg_rgb=BLACK,
+        text_rgb=WHITE,
+        text="<--- Return to start",
+        action=GameState.TITLE,
+    )
+
+    portland_btn = Button(300, 100, 'assets/buttons/portland_button.png', 2, action=GameState.PORTLAND)
+    eugene_btn = Button(300, 250, 'assets/buttons/eugene_button.png', 2, action=GameState.EUGENE)
+    corvallis_btn = Button(300, 400, 'assets/buttons/corvallis_button.png', 2, action=GameState.CORVALLIS)
+
+    buttons = RenderUpdates(return_btn, portland_btn, eugene_btn, corvallis_btn)
+    return game_loop(screen, buttons, sound, draw_extra=lambda s: coin_banner(s, player))
+
+
+def portland_screen(screen, player, sound=None):
     background_image = pygame.image.load(os.path.join('assets/background_images/portland_pixel.png')).convert()
     background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 
@@ -38,11 +56,12 @@ def portland_screen(screen, sound=None):
     level_display(sound, level_boxes, levels)
 
     buttons = RenderUpdates(return_btn)
-    return game_loop(screen, buttons, sound, background_image, city="portland", level_boxes=level_boxes, levels=levels)
+    return game_loop(screen, buttons, sound, background_image, city="portland", level_boxes=level_boxes, levels=levels, draw_extra=lambda s: coin_banner(s, player), player=player)
 
 
-def eugene_screen(screen, sound=None):
-    background_image = pygame.image.load(os.path.join('assets/background_images/eugene_pixel.png')).convert()
+def eugene_screen(screen, player, sound=None):
+    coin_banner(screen, player)
+    background_image = pygame.image.load(os.path.join('assets/background_images/eugene_pixel.png')).convert_alpha()
     background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))     # Scale the image to fit the window size
 
     return_btn = UIElement(
@@ -60,11 +79,12 @@ def eugene_screen(screen, sound=None):
     level_display(sound, level_boxes, levels)
 
     buttons = RenderUpdates(return_btn)
-    return game_loop(screen, buttons, sound, background_image, city="eugene" , level_boxes=level_boxes, levels=levels)
+    return game_loop(screen, buttons, sound, background_image, city="eugene" , level_boxes=level_boxes, levels=levels, draw_extra=lambda s: coin_banner(s, player), player=player)
 
 
-def corvallis_screen(screen, sound=None):
-    background_image = pygame.image.load(os.path.join('assets/background_images/corvallis_pixel.png')).convert()
+def corvallis_screen(screen, player, sound=None):
+    coin_banner(screen, player)
+    background_image = pygame.image.load(os.path.join('assets/background_images/corvallis_pixel.png')).convert_alpha()
     background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))     # Scale the image to fit the window size
 
     return_btn = UIElement(
@@ -82,7 +102,7 @@ def corvallis_screen(screen, sound=None):
     level_display(sound, level_boxes, levels)
 
     buttons = RenderUpdates(return_btn)
-    return game_loop(screen, buttons, sound, background_image, city="corvallis", level_boxes=level_boxes, levels=levels)
+    return game_loop(screen, buttons, sound, background_image, city="corvallis", level_boxes=level_boxes, levels=levels, draw_extra=lambda s: coin_banner(s, player), player=player)
 
 
 def level_display(sound, level_boxes, levels):
@@ -90,8 +110,8 @@ def level_display(sound, level_boxes, levels):
     ICON_SIZE = 160
     GAP_X = 40
     GAP_Y = 40
-    START_X = 100
-    START_Y = 60
+    START_X = 120
+    START_Y = 100
 
     for i, level in enumerate(levels):
         if i < 3:
@@ -105,6 +125,20 @@ def level_display(sound, level_boxes, levels):
         # Use Button for level icons so hover/click behavior is shared
         btn = Button(x, y, f"assets/level_icons/level_{level.level_id}.png", size=(ICON_SIZE, ICON_SIZE), action=level.level_id, unlocked=True,)
         level_boxes.add(btn)
+
+
+def coin_banner(screen, player):
+    ''' Displays coin banner at top of screen '''
+    pygame.draw.rect(screen, (0, 0, 0), (0, 0, WIDTH, 47)) # banner
+    coin_img = pygame.image.load('assets/coin.png').convert_alpha()
+    coin_img = pygame.transform.smoothscale(coin_img, (30, 30))
+    screen.blit(coin_img, (WIDTH - 50, 9))
+    
+    font = pygame.font.Font("assets/ByteBounce.ttf", 24)
+    coin_text = font.render(f"Coins: {player.points}", True, (255, 255, 255))
+    player_text = font.render(f"Player: {player.name}", True, (255, 255, 255))
+    screen.blit(player_text, (20, 15))
+    screen.blit(coin_text, (WIDTH - 180, 15))
 
 
 # def character_screen(screen, sound=None):

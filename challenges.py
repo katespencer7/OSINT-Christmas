@@ -1,10 +1,12 @@
-import pygame, shutil, os
+import pygame, shutil, os, pyperclip
 from pygame.sprite import Sprite
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (120, 120, 120)
 GREEN = (0, 200, 0)
+
+point_vals = {1:1000, 2:1500, 3:2000, 4:3000, 5:5000}
 
 class OSINTLevel:
     """
@@ -47,6 +49,14 @@ class TextInput:
                     self.text = self.text[:-1]
                 elif event.key == pygame.K_RETURN:
                     pass
+                elif event.key == pygame.K_v and (event.mod & pygame.KMOD_CTRL or event.mod & pygame.KMOD_META):
+                    try:
+                        clip = pyperclip.paste()
+                        if clip:
+                            self.text += clip
+                    except Exception:
+                        pass
+
                 else:
                     self.text += event.unicode
         
@@ -68,12 +78,16 @@ class TextInput:
                              (cursor_x, cursor_y + self.rect.height - 10), 2)
 
 
-def osint_level_page(screen, level, click_sound, city):
+def osint_level_page(screen, level, click_sound, city, player):
     """
     Full-page screen for a single OSINT level.
     Returns the appropriate GameState to navigate back.
     """
     from game import Button, UIElement, RenderUpdates, GameState
+
+    correct_sound = pygame.mixer.Sound("assets/sounds/90s-game-ui-11-185104.wav")
+    wrong_sound = pygame.mixer.Sound("assets/sounds/classic-game-action-negative-5-224417.wav")
+    points_sound = pygame.mixer.Sound("assets/sounds/get-coin-351945.wav")
 
     dict_city_state = {
         "portland": GameState.PORTLAND,
@@ -86,13 +100,13 @@ def osint_level_page(screen, level, click_sound, city):
     clock = pygame.time.Clock()
 
     level_img = pygame.image.load(level.image_path).convert_alpha()
-    level_img = pygame.transform.smoothscale(level_img, (400, 280))
-    level_rect = level_img.get_rect(topleft=(90, 110))
+    level_img = pygame.transform.smoothscale(level_img, (450, 330))
+    level_rect = level_img.get_rect(topleft=(50, 80))
 
-    title_font = pygame.font.Font("assets/ByteBounce.ttf", 28)
-    text_font = pygame.font.Font("assets/ByteBounce.ttf", 18)
+    title_font = pygame.font.Font("assets/ByteBounce.ttf", 45)
+    text_font = pygame.font.Font("assets/ByteBounce.ttf", 21)
 
-    input_box = TextInput(pygame.Rect(530, 230, 180, 40))
+    input_box = TextInput(pygame.Rect(530, 230, 200, 40))
 
     return_button = UIElement(
         center_position=(140, 570),
@@ -103,7 +117,7 @@ def osint_level_page(screen, level, click_sound, city):
         action=state,
     )
     enter_button = Button(600, 300, "assets/buttons/enter_button.png", 1, action="CHECK")
-    download_button = Button(100, 410, "assets/buttons/download_button.png", 1.25, action="DOWNLOAD")
+    download_button = Button(52, 430, "assets/buttons/download_button.png", 1.35, action="DOWNLOAD")
 
     buttons = RenderUpdates(return_button, enter_button, download_button)
 
@@ -123,13 +137,17 @@ def osint_level_page(screen, level, click_sound, city):
                     user_input = input_box.text.replace(" ", "")
                     solution = ",".join(level.answer)
                     if user_input == solution:
+                        correct_sound.play()
                         return state
+                    else:
+                        wrong_sound.play()
 
         input_box.update(events)
 
         mouse_pos = pygame.mouse.get_pos()
         for button in buttons:
-            action = button.update(mouse_pos, mouse_up, click_sound)
+            button_sound = None if button == enter_button else click_sound # don't play sound for enter btn
+            action = button.update(mouse_pos, mouse_up, button_sound)
             if action == state:  # Return button clicked
                 return state
             elif action == "DOWNLOAD":
@@ -144,18 +162,29 @@ def osint_level_page(screen, level, click_sound, city):
                 user_input = input_box.text.replace(" ", "")
                 solution = ",".join(level.answer)
                 if user_input == solution:
+                    correct_sound.play()
+                    player.points += (point_vals[level.level_id])
                     return state # FIXME, want to display correct icon
                 else:
-                    download_message = "Incorrect solution!"
+                    wrong_sound.play()
+                    download_message = "Incorrect solution!" # FIXME, want to display incorrect icon
 
         screen.fill((0,0,0))
+        from screens import coin_banner
+        coin_banner(screen, player)
         screen.blit(level_img, level_rect)
-        pygame.draw.rect(screen, (40, 40, 40), (520, 110, 200, 360), border_radius=8)
+        pygame.draw.rect(screen, (40, 40, 40), (520, 80, 230, 450)) # Background box
 
-        title_surf = title_font.render(f"Level {level.level_id}", True, (255,255,255))
-        screen.blit(title_surf, (530, 120))
-        instructions_surf = text_font.render("Enter solution in form 0.000,0.000", True, (200,200,200))
-        screen.blit(instructions_surf, (530, 170))
+        title_surf = title_font.render(f"LEVEL {level.level_id}", True, (255,255,255))
+        screen.blit(title_surf, (560, 95))
+        instructions_surf = text_font.render(f"Enter solution in form:", True, (200,200,200))
+        screen.blit(instructions_surf, (530, 150))
+        instructions_sol = text_font.render(f"##.###,##.###", True, (200,200,200))
+        screen.blit(instructions_sol, (540, 167))
+        example_surf = text_font.render("Example solution:", True, (200,200,200))
+        screen.blit(example_surf, (530, 190))
+        example_surf = text_font.render("44.0175976,-123.9408846", True, (200,200,200))
+        screen.blit(example_surf, (540, 207))
 
         input_box.draw(screen)
 
@@ -164,7 +193,7 @@ def osint_level_page(screen, level, click_sound, city):
 
         if download_message:
             msg_surf = text_font.render(download_message, True, (255, 255, 255))
-            msg_rect = msg_surf.get_rect(center=(300, 400))
+            msg_rect = msg_surf.get_rect(center=(320, 455))
             screen.blit(msg_surf, msg_rect)
 
         pygame.display.flip()

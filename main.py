@@ -2,8 +2,10 @@ from screens import *
 import pygame, sys
 
 def main():
-    pygame.init()
     WIDTH, HEIGHT = 800, 600
+    pygame.init()
+    pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.scrap.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
     pygame.display.set_caption("Christmas OSINT Adventure")
     clock = pygame.time.Clock()
@@ -13,6 +15,7 @@ def main():
     pygame.mixer.music.load('assets/sounds/soulomon-b-the-yume-collective-midnight-miracles-436039.mp3')
     pygame.mixer.music.play(-1)  # play indefinitely
     click_sound = pygame.mixer.Sound("assets/sounds/90s-game-ui-6-185099.wav")
+    points_sound = pygame.mixer.Sound("assets/sounds/get-coin-351945.wav")
 
     running = True
     while running:
@@ -33,13 +36,13 @@ def main():
             game_state = play_level(screen, player, click_sound)
 
         elif game_state == GameState.PORTLAND:
-            game_state = portland_screen(screen, click_sound)
+            game_state = portland_screen(screen, player, click_sound)
 
         elif game_state == GameState.EUGENE:
-            game_state = eugene_screen(screen, click_sound)
+            game_state = eugene_screen(screen, player, click_sound)
 
         elif game_state == GameState.CORVALLIS:
-            game_state = corvallis_screen(screen, click_sound)
+            game_state = corvallis_screen(screen, player, click_sound)
 
         elif game_state == GameState.QUIT:
             player.save_game()  # save the current game
