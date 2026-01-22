@@ -1,5 +1,15 @@
 from screens import *
-import pygame, sys
+import pygame, sys, os
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works with PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 
 def main():
     WIDTH, HEIGHT = 800, 600
@@ -17,11 +27,19 @@ def main():
     click_sound = pygame.mixer.Sound("assets/sounds/90s-game-ui-6-185099.wav")
     points_sound = pygame.mixer.Sound("assets/sounds/get-coin-351945.wav")
 
+    player = load_game()
+
+    # if not player.name or player.name.strip() == "":
+    #     game_state = GameState.NAME
+    # else:
+    #     game_state = GameState.TITLE
+
     running = True
     while running:
         events = pygame.event.get()
         for event in events: # closing window
             if event.type == pygame.QUIT:
+                player.save_game()
                 running = False
 
             if event.type == pygame.VIDEORESIZE: # resizing
@@ -32,7 +50,6 @@ def main():
             game_state = title_screen(screen, click_sound)
 
         elif game_state == GameState.NEWGAME:
-            player = load_game()
             game_state = play_level(screen, player, click_sound)
 
         elif game_state == GameState.PORTLAND:

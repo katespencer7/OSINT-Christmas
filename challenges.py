@@ -151,17 +151,19 @@ def osint_level_page(screen, level, click_sound, city, player):
         "eugene": GameState.EUGENE,
         "corvallis": GameState.CORVALLIS,
     }
-    state = dict_city_state.get(city, GameState.NEWGAME)  # default to NEWGAME if city not found
+    state = dict_city_state.get(city, GameState.NEWGAME)
 
     running = True
     clock = pygame.time.Clock()
+    
+    is_completed = player.check_levels(level.level_id, city) # check if level already completed
 
     level_img = pygame.image.load(level.image_path).convert_alpha()
     level_img = pygame.transform.smoothscale(level_img, (450, 330))
     level_rect = level_img.get_rect(topleft=(50, 80))
 
-    title_font = pygame.font.Font("assets/ByteBounce.ttf", 47)
-    text_font = pygame.font.Font("assets/ByteBounce.ttf", 22)
+    title_font = pygame.font.Font("assets/ByteBounce.ttf", 45)
+    text_font = pygame.font.Font("assets/ByteBounce.ttf", 20)
     coin_font = pygame.font.Font("assets/ByteBounce.ttf", 24)
 
     input_box = TextInput(pygame.Rect(530, 280, 210, 40))
@@ -198,15 +200,18 @@ def osint_level_page(screen, level, click_sound, city, player):
                 if event.key == pygame.K_RETURN:
                     user_input = input_box.text.replace(" ", "")
                     solution = ",".join(level.answer)
+                    
                     if user_input == solution:
                         correct_sound.play()
                         result_image = pygame.image.load("assets/level_icons/check.png").convert_alpha()
                         result_timer = 80  # Display for 2 seconds at 60 fps
-                        points_awarded = point_vals[level.level_id]
+                        if not is_completed:
+                            points_awarded = point_vals[level.level_id]
                     else:
                         wrong_sound.play()
                         result_image = pygame.image.load("assets/level_icons/x.png").convert_alpha()
                         result_timer = 80  # Display for 2 seconds at 60 fps
+
 
         input_box.update(events)
         
@@ -216,10 +221,10 @@ def osint_level_page(screen, level, click_sound, city, player):
             if result_timer == 0:
                 result_image = None
                 
-                if points_awarded > 0 and not show_points: # if we just finished showing correct answer, start points sequence
+                if points_awarded > 0 and not show_points:
                     points_sound.play()
                     show_points = True
-                    points_timer = 80  # display points for 2 seconds
+                    points_timer = 80
         
         # points display timer
         if points_timer > 0:
@@ -227,16 +232,16 @@ def osint_level_page(screen, level, click_sound, city, player):
             if points_timer == 0:
                 show_points = False
                 player.points += points_awarded
-                player.save_game() # save the points
-                player.update_levels(level.level_id, city) # update the level as completed
-                # return state # FIXME want something else
+                player.save_game()
+                player.update_levels(level.level_id, city)
+                points_awarded = 0
 
         mouse_pos = pygame.mouse.get_pos()
         for button in buttons:
-            button_sound = None if button == enter_button else click_sound # don't play sound for enter btn
+            button_sound = None if button == enter_button else click_sound
             action = button.update(mouse_pos, mouse_up, button_sound)
             
-            if action == state:  # Return button clicked
+            if action == state:
                 return state
             
             elif action == "DOWNLOAD":
@@ -254,51 +259,58 @@ def osint_level_page(screen, level, click_sound, city, player):
                 if user_input == solution:
                     correct_sound.play()
                     result_image = pygame.image.load("assets/level_icons/check.png").convert_alpha()
-                    result_timer = 120  # display for 2 seconds at 60 fps
-                    points_awarded = point_vals[level.level_id]
+                    result_timer = 120  # Display for 2 seconds at 60 fps
+                    # Only award points if not already completed
+                    if not is_completed:
+                        points_awarded = point_vals[level.level_id]
                 else:
                     wrong_sound.play()
                     result_image = pygame.image.load("assets/level_icons/x.png").convert_alpha()
-                    result_timer = 80  # display for ~1.3 seconds
+                    result_timer = 80
 
         screen.fill((0,0,0))
         from screens import coin_banner
         coin_banner(screen, player)
         screen.blit(level_img, level_rect)
-        pygame.draw.rect(screen, (40, 40, 40), (520, 80, 230, 450)) # background box
+        pygame.draw.rect(screen, (40, 40, 40), (520, 80, 230, 450))
 
         title_surf = title_font.render(f"LEVEL {level.level_id}", True, (255,255,255))
-        screen.blit(title_surf, (560, 95))
+        screen.blit(title_surf, (570, 95))
+        
+        if is_completed == True: # display if level is already completed
+            level_completed_text(screen, level, coin_font, text_font)
+        
         instructions_surf = text_font.render(f"Enter solution in form:", True, (200,200,200))
-        screen.blit(instructions_surf, (530, 150))
         instructions_sol = text_font.render(f"##.###,##.###", True, (200,200,200))
+        screen.blit(instructions_surf, (530, 150))
         screen.blit(instructions_sol, (540, 167))
-        example_surf = text_font.render("Example solution:", True, (200,200,200))
-        screen.blit(example_surf, (530, 210))
-        example_surf = text_font.render("44.0175976,-123.9408846", True, (200,200,200))
-        screen.blit(example_surf, (540, 227))
 
-        input_box.draw(screen)
+        example_surf = text_font.render("Example solution:", True, (200,200,200))
+        example_sol = text_font.render("44.0175976,-123.9408846", True, (200,200,200))
+        screen.blit(example_surf, (530, 210))
+        screen.blit(example_sol, (540, 227))
+
+        input_box.draw(screen) # text input box
 
         for button in buttons:
             button.draw(screen)
 
-        # sucessful or unsucessful result message
         if download_message:
             msg_surf = text_font.render(download_message, True, (255, 255, 255))
             msg_rect = msg_surf.get_rect(center=(320, 455))
             screen.blit(msg_surf, msg_rect)
         
-        # reuslt image (check or x)
         if result_image:
             img_rect = result_image.get_rect(center=(640, 450))
             screen.blit(result_image, img_rect)
         
-        # points rewards
         if show_points:
             points_surf = coin_font.render(f"+{points_awarded}", True, (255, 202, 40))
             points_rect = points_surf.get_rect(center=(705, 45))
             screen.blit(points_surf, points_rect)
+        
+        if player.check_levels(level.level_id, city): # recompute if level just completed
+            level_completed_text(screen, level, coin_font, text_font)
 
         pygame.display.flip()
         clock.tick(60)
@@ -313,3 +325,13 @@ def load_city_levels(city_name: str):
     for i in range(1, 6):
         levels.append(OSINTLevel(city_name, i))
     return levels
+
+
+def level_completed_text(screen, level, coin_font, text_font):
+    """Display level completed message with points awarded."""
+    completed_surf = coin_font.render("LEVEL COMPLETED!", True, (102, 187, 106))
+    correct_surf = text_font.render(f"Correct solution:", True, (102, 187, 106))
+    correct_sol = text_font.render(f"{",".join(level.answer)}", True, (102, 187, 106))
+    screen.blit(completed_surf, (530, 400))
+    screen.blit(correct_surf, (530, 430))
+    screen.blit(correct_sol, (540, 450))

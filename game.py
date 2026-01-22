@@ -81,6 +81,7 @@ class UIElement(Sprite):
 
 
 class GameState(Enum):
+    # NAME = -2
     QUIT = -1
     TITLE = 0
     NEWGAME = 1
@@ -274,6 +275,18 @@ def load_game():
 def game_loop(screen, buttons, sound=None, background=None, city=None, level_boxes=None, levels=None, draw_extra=None, player=None):
     active_osint = None
     clock = pygame.time.Clock()
+    
+    check_overlays = {} # pre load check mark images for completed levels
+    if level_boxes and city and player:
+        check_img = pygame.image.load('assets/level_icons/check.png').convert_alpha()
+        for box in level_boxes:
+            level_id = box.action
+            if level_id and player.check_levels(level_id, city):
+                check_scaled = pygame.transform.scale(
+                    check_img,
+                    (box.rect.width - 65, box.rect.height - 65)
+                )
+                check_overlays[level_id] = check_scaled
 
     while True:
         mouse_up = False
@@ -288,7 +301,7 @@ def game_loop(screen, buttons, sound=None, background=None, city=None, level_box
         mouse_pos = pygame.mouse.get_pos()
 
         if active_osint:
-            result = active_osint.update(events) #FIXME solution management
+            result = active_osint.update(events)
 
             if background:
                 screen.blit(background, (0, 0))
@@ -320,14 +333,35 @@ def game_loop(screen, buttons, sound=None, background=None, city=None, level_box
             for box in level_boxes:
                 clicked_level_id = box.update(mouse_pos, mouse_up, sound)
                 box.draw(screen)
+                
+                level_id = box.action
+                if level_id in check_overlays:
+                    overlay = pygame.Surface(box.rect.size, pygame.SRCALPHA)
+                    overlay.fill((0, 0, 0, 80))
+                    screen.blit(overlay, box.rect.topleft)
+
+                    check_img = check_overlays[level_id]
+                    check_rect = check_img.get_rect(center=box.rect.center)
+                    screen.blit(check_img, check_rect)
 
                 if clicked_level_id:
                     level = levels[clicked_level_id - 1]
                     result = osint_level_page(screen, level, sound, city, player)
-                    # Handle the result from osint_level_page
+                    
+                    # Refresh check_overlays after completing a level
+                    if result != GameState.TITLE:
+                        check_overlays.clear()
+                        for box2 in level_boxes:
+                            level_id2 = box2.action
+                            if level_id2 and player.check_levels(level_id2, city):
+                                check_scaled = pygame.transform.scale(
+                                    check_img,
+                                    (box2.rect.width - 65, box2.rect.height - 65)
+                                )
+                                check_overlays[level_id2] = check_scaled
+                    
                     if result == "TITLE":
                         return GameState.TITLE
-                    # Add more result handling as needed
 
         for button in buttons:
             action = button.update(mouse_pos, mouse_up, sound)
@@ -340,4 +374,6 @@ def game_loop(screen, buttons, sound=None, background=None, city=None, level_box
         
         pygame.display.flip()
         clock.tick(60)
+
+
 

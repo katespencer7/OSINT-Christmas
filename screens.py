@@ -1,4 +1,5 @@
 from game import *
+from challenges import TextInput
 
 def title_screen(screen, sound=None):
     quit_button = Button(200, 400, 'assets/buttons/quit_button.png', 2, action=GameState.QUIT)
@@ -53,7 +54,7 @@ def portland_screen(screen, player, sound=None):
     levels = load_city_levels("portland")
     level_boxes = RenderUpdates()
 
-    level_display(sound, level_boxes, levels)
+    level_display(sound, level_boxes, levels, player, "portland")
 
     buttons = RenderUpdates(return_btn)
     return game_loop(screen, buttons, sound, background_image, city="portland", level_boxes=level_boxes, levels=levels, draw_extra=lambda s: coin_banner(s, player), player=player)
@@ -61,7 +62,7 @@ def portland_screen(screen, player, sound=None):
 
 def eugene_screen(screen, player, sound=None):
     coin_banner(screen, player)
-    background_image = pygame.image.load(os.path.join('assets/background_images/eugene_pixel.png')).convert_alpha()
+    background_image = pygame.image.load(os.path.join('assets/background_images/eugene_pixel.png')).convert()
     background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))     # Scale the image to fit the window size
 
     return_btn = UIElement(
@@ -76,7 +77,7 @@ def eugene_screen(screen, player, sound=None):
     levels = load_city_levels("eugene")
     level_boxes = RenderUpdates()
 
-    level_display(sound, level_boxes, levels)
+    level_display(sound, level_boxes, levels, player, "eugene")
 
     buttons = RenderUpdates(return_btn)
     return game_loop(screen, buttons, sound, background_image, city="eugene" , level_boxes=level_boxes, levels=levels, draw_extra=lambda s: coin_banner(s, player), player=player)
@@ -84,7 +85,7 @@ def eugene_screen(screen, player, sound=None):
 
 def corvallis_screen(screen, player, sound=None):
     coin_banner(screen, player)
-    background_image = pygame.image.load(os.path.join('assets/background_images/corvallis_pixel.png')).convert_alpha()
+    background_image = pygame.image.load(os.path.join('assets/background_images/corvallis_pixel.png')).convert()
     background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))     # Scale the image to fit the window size
 
     return_btn = UIElement(
@@ -99,13 +100,13 @@ def corvallis_screen(screen, player, sound=None):
     levels = load_city_levels("corvallis")
     level_boxes = RenderUpdates()
 
-    level_display(sound, level_boxes, levels)
+    level_display(sound, level_boxes, levels, player, "corvallis")
 
     buttons = RenderUpdates(return_btn)
     return game_loop(screen, buttons, sound, background_image, city="corvallis", level_boxes=level_boxes, levels=levels, draw_extra=lambda s: coin_banner(s, player), player=player)
 
 
-def level_display(sound, level_boxes, levels):
+def level_display(sound, level_boxes, levels, player, city):
     ''' Helper function for level screens, displays level boxes in grid '''
     ICON_SIZE = 160
     GAP_X = 40
@@ -154,3 +155,67 @@ def coin_banner(screen, player):
 
 #     buttons = RenderUpdates(return_btn)
 #     return game_loop(screen, buttons, sound)
+
+
+# def name_entry_screen(screen, player, sound=None):
+#     """
+#     Screen for entering the player's name.
+#     Returns GameState.NEWGAME when done.
+#     """
+#     clock = pygame.time.Clock()
+
+#     title_font = pygame.font.Font("assets/ByteBounce.ttf", 48)
+#     text_font = pygame.font.Font("assets/ByteBounce.ttf", 22)
+
+#     input_box = TextInput(pygame.Rect(250, 280, 300, 45))
+
+#     confirm_button = Button(
+#         350, 350,
+#         "assets/buttons/enter_button.png",
+#         scale=1,
+#         action="CONFIRM"
+#     )
+
+#     buttons = RenderUpdates(confirm_button)
+
+#     while True:
+#         events = pygame.event.get()
+#         mouse_up = False
+
+#         for event in events:
+#             if event.type == pygame.QUIT:
+#                 return GameState.QUIT
+#             if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+#                 mouse_up = True
+#             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+#                 if input_box.text.strip():
+#                     player.name = input_box.text.strip()
+#                     player.save_game()
+#                     return GameState.NEWGAME
+
+#         input_box.update(events)
+
+#         mouse_pos = pygame.mouse.get_pos()
+#         for button in buttons:
+#             action = button.update(mouse_pos, mouse_up, sound)
+#             if action == "CONFIRM" and input_box.text.strip():
+#                 player.name = input_box.text.strip()
+#                 player.save_game()
+#                 return GameState.NEWGAME
+
+#         # ---- DRAW ----
+#         screen.fill((0, 0, 0))
+
+#         title = title_font.render("ENTER YOUR NAME", True, (255, 255, 255))
+#         subtitle = text_font.render("This will be saved to your profile", True, (180, 180, 180))
+
+#         screen.blit(title, title.get_rect(center=(WIDTH // 2, 180)))
+#         screen.blit(subtitle, subtitle.get_rect(center=(WIDTH // 2, 225)))
+
+#         input_box.draw(screen)
+
+#         for button in buttons:
+#             button.draw(screen)
+
+#         pygame.display.flip()
+#         clock.tick(60)
