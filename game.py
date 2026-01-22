@@ -98,18 +98,49 @@ class GameState(Enum):
 class Player:
     """ Stores information about a player: points and name (under save_data.json)."""
 
-    def __init__(self, points=0, name="Player"):
-        self.points = points
-        self.name = name
+    def __init__(self, save_file):
+        self.points = save_file["points"]
+        self.name = save_file["name"]
 
-    def save_game(player):
-        data = {
-            "points": player.points,
-            "name": player.name,
-        }
+    def save_game(player): # FIXME
+        try:
+            with open("save_data.json", "r") as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            exit(-1)
 
-        with open("save_data.json", "w") as f:
+        data["save_file"]["points"] = player.points
+        data["save_file"]["name"] = player.name
+
+        with open("save_data.json", "w") as f: # write back to file
             json.dump(data, f, indent=4)
+
+    def update_levels(player, level:int, city:str):
+        """ Marks a level as completed under player save file. """
+        try:
+            with open("save_data.json", "r") as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            exit(-1)
+
+        level_key = str(level)  # ensure level is string for JSON keys
+
+        data["save_file"]["levels"][city][level_key] = "completed"
+
+        with open("save_data.json", "w") as f: # write back to file
+            json.dump(data, f, indent=4)
+
+    def check_levels(player, level:int, city:str) -> bool:
+        """ Checks if a level has been completed under player save file. """
+        try:
+            with open("save_data.json", "r") as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            exit() # crash the game if save file can't be created
+
+        level_key = str(level)  # ensure level is string for JSON keys
+
+        return data["save_file"]["levels"][city].get(level_key) == "completed"
 
 
 # class Character: # TODO

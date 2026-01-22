@@ -1,5 +1,5 @@
-import pygame, shutil, os, pyperclip
-from pygame.sprite import Sprite
+import pygame, shutil, os, pyperclip, time
+# from pygame.sprite import Sprite
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -38,44 +38,101 @@ class TextInput:
         self.active = False
         self.cursor_visible = True
         self.cursor_timer = 0
+        self.cursor_pos = 0
+
+        pygame.key.set_repeat(300, 50) # enable key repeat for held keys
 
     def update(self, events):
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN:
-                self.active = self.rect.collidepoint(event.pos)
+                if self.rect.collidepoint(event.pos):
+                    self.active = True
+                    mouse_x = event.pos[0] - (self.rect.x + 5) # calculate cursor position for mouse click
+                    self.cursor_pos = self._get_cursor_from_pos(mouse_x)
+                else:
+                    self.active = False
             
             if event.type == pygame.KEYDOWN and self.active:
                 if event.key == pygame.K_BACKSPACE:
-                    self.text = self.text[:-1]
-                elif event.key == pygame.K_RETURN:
+                    if self.cursor_pos > 0:
+                        self.text = self.text[:self.cursor_pos - 1] + self.text[self.cursor_pos:]
+                        self.cursor_pos -= 1
+                
+                elif event.key == pygame.K_DELETE:
+                    if self.cursor_pos < len(self.text):
+                        self.text = self.text[:self.cursor_pos] + self.text[self.cursor_pos + 1:]
+                
+                elif event.key == pygame.K_LEFT: # left arrow
+                    self.cursor_pos = max(0, self.cursor_pos - 1)
+                
+                elif event.key == pygame.K_RIGHT: # right arrow
+                    self.cursor_pos = min(len(self.text), self.cursor_pos + 1)
+                
+                elif event.key == pygame.K_HOME:
+                    self.cursor_pos = 0
+                
+                elif event.key == pygame.K_END:
+                    self.cursor_pos = len(self.text)
+                
+                elif event.key == pygame.K_RETURN: # enter key
                     pass
+                
                 elif event.key == pygame.K_v and (event.mod & pygame.KMOD_CTRL or event.mod & pygame.KMOD_META):
                     try:
                         clip = pyperclip.paste()
                         if clip:
-                            self.text += clip
+                            self.text = self.text[:self.cursor_pos] + clip + self.text[self.cursor_pos:]
+                            self.cursor_pos += len(clip)
                     except Exception:
                         pass
-
-                else:
-                    self.text += event.unicode
+                else: # insert charatcer at cursor position
+                    self.text = self.text[:self.cursor_pos] + event.unicode + self.text[self.cursor_pos:]
+                    self.cursor_pos += len(event.unicode)
         
         self.cursor_timer += 1
         
-        if self.cursor_timer >= 20:
+        if self.cursor_timer >= 20: # cursor blink rate
             self.cursor_visible = not self.cursor_visible
             self.cursor_timer = 0
+
+    def _get_cursor_from_pos(self, mouse_x):
+        """Calculate cursor position based on mouse x coordinate."""
+        for i in range(len(self.text) + 1):
+            text_width = self.font.render(self.text[:i], True, BLACK).get_width()
+            if mouse_x < text_width:
+                return max(0, i)
+        
+        return len(self.text)
 
     def draw(self, surface):
         pygame.draw.rect(surface, WHITE, self.rect)
         txt_surf = self.font.render(self.text, True, BLACK)
-        surface.blit(txt_surf, (self.rect.x + 5, self.rect.y + 5))
+        
+        cursor_text = self.text[:self.cursor_pos] # calcuate cursor position
+        cursor_width = self.font.render(cursor_text, True, BLACK).get_width()
+        
+        text_width = txt_surf.get_width() # calcuate text width
+        available_width = self.rect.width - 10  # 5px padding on each side
+        
+        text_x = self.rect.x + 5 # text offset
+        if text_width > available_width: # scrolling logic
+            if cursor_width > available_width:
+                text_x = self.rect.x + 5 - (cursor_width - available_width)
+            elif cursor_width < 0:
+                text_x = self.rect.x + 5 - cursor_width
+        
+        clip_rect = pygame.Rect(self.rect.x, self.rect.y, self.rect.width, self.rect.height)
+        surface.set_clip(clip_rect) # prevent text from overflowing box
+        
+        surface.blit(txt_surf, (text_x, self.rect.y + 5))
         
         if self.active and self.cursor_visible:
-            cursor_x = self.rect.x + 5 + txt_surf.get_width() + 2
+            cursor_x = text_x + cursor_width
             cursor_y = self.rect.y + 5
             pygame.draw.line(surface, BLACK, (cursor_x, cursor_y),
                              (cursor_x, cursor_y + self.rect.height - 10), 2)
+        
+        surface.set_clip(None)
 
 
 def osint_level_page(screen, level, click_sound, city, player):
@@ -103,10 +160,11 @@ def osint_level_page(screen, level, click_sound, city, player):
     level_img = pygame.transform.smoothscale(level_img, (450, 330))
     level_rect = level_img.get_rect(topleft=(50, 80))
 
-    title_font = pygame.font.Font("assets/ByteBounce.ttf", 45)
-    text_font = pygame.font.Font("assets/ByteBounce.ttf", 21)
+    title_font = pygame.font.Font("assets/ByteBounce.ttf", 47)
+    text_font = pygame.font.Font("assets/ByteBounce.ttf", 22)
+    coin_font = pygame.font.Font("assets/ByteBounce.ttf", 24)
 
-    input_box = TextInput(pygame.Rect(530, 230, 200, 40))
+    input_box = TextInput(pygame.Rect(530, 280, 210, 40))
 
     return_button = UIElement(
         center_position=(140, 570),
@@ -116,12 +174,16 @@ def osint_level_page(screen, level, click_sound, city, player):
         text="<--- Return to levels",
         action=state,
     )
-    enter_button = Button(600, 300, "assets/buttons/enter_button.png", 1, action="CHECK")
+    enter_button = Button(675, 340, "assets/buttons/enter_button.png", 1, action="CHECK")
     download_button = Button(52, 430, "assets/buttons/download_button.png", 1.35, action="DOWNLOAD")
-
     buttons = RenderUpdates(return_button, enter_button, download_button)
 
     download_message = ""
+    result_image = None
+    result_timer = 0
+    show_points = False
+    points_timer = 0
+    points_awarded = 0
 
     while running:
         events = pygame.event.get()
@@ -138,18 +200,45 @@ def osint_level_page(screen, level, click_sound, city, player):
                     solution = ",".join(level.answer)
                     if user_input == solution:
                         correct_sound.play()
-                        return state
+                        result_image = pygame.image.load("assets/level_icons/check.png").convert_alpha()
+                        result_timer = 80  # Display for 2 seconds at 60 fps
+                        points_awarded = point_vals[level.level_id]
                     else:
                         wrong_sound.play()
+                        result_image = pygame.image.load("assets/level_icons/x.png").convert_alpha()
+                        result_timer = 80  # Display for 2 seconds at 60 fps
 
         input_box.update(events)
+        
+        # result image timer
+        if result_timer > 0:
+            result_timer -= 1
+            if result_timer == 0:
+                result_image = None
+                
+                if points_awarded > 0 and not show_points: # if we just finished showing correct answer, start points sequence
+                    points_sound.play()
+                    show_points = True
+                    points_timer = 80  # display points for 2 seconds
+        
+        # points display timer
+        if points_timer > 0:
+            points_timer -= 1
+            if points_timer == 0:
+                show_points = False
+                player.points += points_awarded
+                player.save_game() # save the points
+                player.update_levels(level.level_id, city) # update the level as completed
+                # return state # FIXME want something else
 
         mouse_pos = pygame.mouse.get_pos()
         for button in buttons:
             button_sound = None if button == enter_button else click_sound # don't play sound for enter btn
             action = button.update(mouse_pos, mouse_up, button_sound)
+            
             if action == state:  # Return button clicked
                 return state
+            
             elif action == "DOWNLOAD":
                 try:
                     downloads_path = os.path.expanduser("~/Downloads")
@@ -158,22 +247,25 @@ def osint_level_page(screen, level, click_sound, city, player):
                     download_message = "Image downloaded successfully!"
                 except Exception:
                     download_message = "Error downloading image!"
+            
             elif action == "CHECK":
                 user_input = input_box.text.replace(" ", "")
                 solution = ",".join(level.answer)
                 if user_input == solution:
                     correct_sound.play()
-                    player.points += (point_vals[level.level_id])
-                    return state # FIXME, want to display correct icon
+                    result_image = pygame.image.load("assets/level_icons/check.png").convert_alpha()
+                    result_timer = 120  # display for 2 seconds at 60 fps
+                    points_awarded = point_vals[level.level_id]
                 else:
                     wrong_sound.play()
-                    download_message = "Incorrect solution!" # FIXME, want to display incorrect icon
+                    result_image = pygame.image.load("assets/level_icons/x.png").convert_alpha()
+                    result_timer = 80  # display for ~1.3 seconds
 
         screen.fill((0,0,0))
         from screens import coin_banner
         coin_banner(screen, player)
         screen.blit(level_img, level_rect)
-        pygame.draw.rect(screen, (40, 40, 40), (520, 80, 230, 450)) # Background box
+        pygame.draw.rect(screen, (40, 40, 40), (520, 80, 230, 450)) # background box
 
         title_surf = title_font.render(f"LEVEL {level.level_id}", True, (255,255,255))
         screen.blit(title_surf, (560, 95))
@@ -182,19 +274,31 @@ def osint_level_page(screen, level, click_sound, city, player):
         instructions_sol = text_font.render(f"##.###,##.###", True, (200,200,200))
         screen.blit(instructions_sol, (540, 167))
         example_surf = text_font.render("Example solution:", True, (200,200,200))
-        screen.blit(example_surf, (530, 190))
+        screen.blit(example_surf, (530, 210))
         example_surf = text_font.render("44.0175976,-123.9408846", True, (200,200,200))
-        screen.blit(example_surf, (540, 207))
+        screen.blit(example_surf, (540, 227))
 
         input_box.draw(screen)
 
         for button in buttons:
             button.draw(screen)
 
+        # sucessful or unsucessful result message
         if download_message:
             msg_surf = text_font.render(download_message, True, (255, 255, 255))
             msg_rect = msg_surf.get_rect(center=(320, 455))
             screen.blit(msg_surf, msg_rect)
+        
+        # reuslt image (check or x)
+        if result_image:
+            img_rect = result_image.get_rect(center=(640, 450))
+            screen.blit(result_image, img_rect)
+        
+        # points rewards
+        if show_points:
+            points_surf = coin_font.render(f"+{points_awarded}", True, (255, 202, 40))
+            points_rect = points_surf.get_rect(center=(705, 45))
+            screen.blit(points_surf, points_rect)
 
         pygame.display.flip()
         clock.tick(60)
